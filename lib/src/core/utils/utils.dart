@@ -1,0 +1,4 @@
+//ESTO LO HICE PARA QUE NO SE ME BORRE LA CARPETA, PERO LA DDIEA SERÍA PONER DATOS ESTATICOS QUE SE GENEREN DENTRO DE LA APP
+int get randomId {
+  return DateTime.now().millisecondsSinceEpoch.remainder(100000);
+}
