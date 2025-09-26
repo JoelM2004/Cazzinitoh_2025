@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "644922494575",
+    "project_id": "memorytrip-8d711",
+    "storage_bucket": "memorytrip-8d711.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:644922494575:android:7ac06cf4f4d069deda079a",
+        "android_client_info": {
+          "package_name": "com.example.cazzinitoh_2025"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBT_eukAbP8aB0s9JupjaB_Z9y234eDv5E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,7 @@
 import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/stats_model.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 abstract class UserRemoteDatasource {
   Future<UserModel> getUser(int userId);
@@ -12,6 +13,7 @@ abstract class UserRemoteDatasource {
 
 class UserRemoteDataSourceImpl implements UserRemoteDatasource {
   final Dio dio = Dio();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   //esto es para consultar APIS remotadas, en un futuro o si usamos firebase por ejemplo jeje
   @override
   Future<UserModel> getUser(int userId) async {
@@ -36,39 +38,38 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
     }
   }
 
+  // LOGIN
   Future<bool> login(String email, String password) async {
-    final response = await dio.post(
-      'https://api.example.com/login',
-      data: {'email': email, 'password': password},
-    );
-
-    if (response.statusCode == 200) {
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      print('Login successful for user desde el back: $email');
       return true;
-    } else {
-      throw Exception('Failed to login');
+    } on FirebaseAuthException catch (e) {
+      print('Login failed for user desde el back: $email');
+      return false;
     }
   }
 
+  // REGISTER
   Future<bool> register(String email, String password) async {
-    final response = await dio.post(
-      'https://api.example.com/register',
-      data: {'email': email, 'password': password},
-    );
-
-    if (response.statusCode == 201) {
+    try {
+      await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
       return true;
-    } else {
-      throw Exception('Failed to register');
+    } on FirebaseAuthException catch (e) {
+      throw Exception('Register failed: ${e.message}');
     }
   }
 
+  // LOGOUT
   Future<bool> logout() async {
-    final response = await dio.post('https://api.example.com/logout');
-
-    if (response.statusCode == 200) {
+    try {
+      await _auth.signOut();
       return true;
-    } else {
-      throw Exception('Failed to logout');
+    } catch (e) {
+      throw Exception('Logout failed: $e');
     }
   }
 }

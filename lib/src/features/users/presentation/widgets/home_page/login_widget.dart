@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/login_user/login_user_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -43,20 +45,13 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _handleLogin() {
     if (_loginFormKey.currentState!.validate()) {
-      // Mock login functionality
-      print("Login exitoso: ${_loginEmailController.text}");
-
-      // Mostrar mensaje de éxito
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Inicio de sesión exitoso!'),
-          backgroundColor: Color(0xFF7c3aed), // purple-600
-          duration: Duration(seconds: 2),
+      // Usar BLoC en lugar de mock
+      context.read<LoginUserBloc>().add(
+        LoginUser(
+          email: _loginEmailController.text,
+          password: _loginPasswordController.text,
         ),
       );
-
-      // Aquí podrías navegar a otra pantalla o manejar la autenticación
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage()));
     }
   }
 
@@ -535,39 +530,93 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 const SizedBox(height: 24),
 
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7c3aed),
-                      foregroundColor: Colors.white,
-                      elevation: 8,
-                      shadowColor: const Color(0xFF8b5cf6).withOpacity(0.25),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.shield, size: 20),
-                        SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Entrar al Desafío',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
+                BlocListener<LoginUserBloc, LoginUserState>(
+                  listener: (context, state) {
+                    if (state is LoginUserSuccess) {
+                      if (state.user) {
+                        // Login exitoso
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('¡Inicio de sesión exitoso!'),
+                            backgroundColor: Color(0xFF7c3aed), // purple-600
+                            duration: Duration(seconds: 2),
                           ),
+                        );
+                        // Navegar a la siguiente pantalla si querés
+                        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage()));
+                      } else {
+                        // Login fallido
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Email o contraseña incorrectos'),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    } else if (state is LoginUserFailure) {
+                      // En caso de que tu Bloc también emita failure real
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: ${state.failure.toString()}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 3),
                         ),
-                      ],
-                    ),
+                      );
+                    }
+                  },
+                  child: BlocBuilder<LoginUserBloc, LoginUserState>(
+                    builder: (context, state) {
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: state is LoginUserLoading
+                              ? null
+                              : _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7c3aed),
+                            foregroundColor: Colors.white,
+                            elevation: 8,
+                            shadowColor: const Color(
+                              0xFF8b5cf6,
+                            ).withOpacity(0.25),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          child: state is LoginUserLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.shield, size: 20),
+                                    SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Entrar al Desafío',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
