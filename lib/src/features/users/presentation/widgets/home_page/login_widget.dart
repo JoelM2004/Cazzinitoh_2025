@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/register_user/register_user_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/login_user/login_user_bloc.dart';
@@ -57,7 +58,12 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _handleRegister() {
     if (_registerFormKey.currentState!.validate()) {
-      if (_registerPasswordController.text != _confirmPasswordController.text) {
+      final email = _registerEmailController.text;
+      final password = _registerPasswordController.text;
+      final confirmPassword = _confirmPasswordController.text;
+
+      // Primero validar que las contraseñas coincidan
+      if (password != confirmPassword) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Las contraseñas no coinciden'),
@@ -68,25 +74,12 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
 
-      // Mock register functionality
-      print("Registro exitoso: ${_registerEmailController.text}");
-
-      // Mostrar mensaje de éxito
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Registro exitoso! Ya puedes iniciar sesión.'),
-          backgroundColor: Color(0xFFb91c1c), // red-700
-          duration: Duration(seconds: 2),
-        ),
+      // Disparar evento al Bloc
+      context.read<RegisterUserBloc>().add(
+        RegisterUser(email: email, password: password),
       );
 
-      // Cambiar automáticamente a la pestaña de login después del registro
-      _tabController.animateTo(0);
-
-      // Limpiar los campos del registro
-      _registerEmailController.clear();
-      _registerPasswordController.clear();
-      _confirmPasswordController.clear();
+      // La respuesta del registro se maneja en BlocListener
     }
   }
 
@@ -843,34 +836,98 @@ class _LoginScreenState extends State<LoginScreen>
               const SizedBox(height: 24),
 
               // Register Button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _handleRegister,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFb91c1c), // red-700
-                    foregroundColor: Colors.white,
-                    elevation: 8,
-                    shadowColor: const Color(0xFFef4444).withOpacity(0.25),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.security, size: 16),
-                      SizedBox(width: 8),
-                      Text(
-                        'Unirse al Desafío',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
+              BlocListener<RegisterUserBloc, RegisterUserState>(
+                listener: (context, state) {
+                  if (state is RegisterUserSuccess) {
+                    if (state.user) {
+                      // Registro exitoso
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            '¡Registro exitoso! Ya puedes iniciar sesión.',
+                          ),
+                          backgroundColor: Color(0xFF22c55e), // verde
+                          duration: Duration(seconds: 2),
                         ),
+                      );
+
+                      // Cambiar automáticamente a la pestaña de login
+                      _tabController.animateTo(0);
+
+                      // Limpiar los campos
+                      _registerEmailController.clear();
+                      _registerPasswordController.clear();
+                      _confirmPasswordController.clear();
+                    } else {
+                      // Registro fallido
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Error en el registro. Intenta nuevamente.',
+                          ),
+                          backgroundColor: Colors.red,
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                  } else if (state is RegisterUserFailure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: ${state.failure.toString()}'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 3),
                       ),
-                    ],
-                  ),
+                    );
+                  }
+                },
+                child: BlocBuilder<RegisterUserBloc, RegisterUserState>(
+                  builder: (context, state) {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: state is RegisterUserLoading
+                            ? null
+                            : _handleRegister,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFb91c1c), // red-700
+                          foregroundColor: Colors.white,
+                          elevation: 8,
+                          shadowColor: const Color(
+                            0xFFef4444,
+                          ).withOpacity(0.25),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        child: state is RegisterUserLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.security, size: 16),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Unirse al Desafío',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

@@ -1,5 +1,4 @@
 import 'package:cazzinitoh_2025/src/core/error/failures.dart';
-import 'package:cazzinitoh_2025/src/features/users/domain/entities/user.dart';
 import 'package:cazzinitoh_2025/src/features/users/domain/use_cases/login.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

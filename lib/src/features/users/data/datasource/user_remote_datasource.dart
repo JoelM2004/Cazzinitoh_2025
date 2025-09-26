@@ -59,7 +59,8 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
       );
       return true;
     } on FirebaseAuthException catch (e) {
-      throw Exception('Register failed: ${e.message}');
+      print('Register failed for user desde el back: $email');
+      return false;
     }
   }
 
