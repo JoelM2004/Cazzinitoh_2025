@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/update_user/update_user_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ProfileForm extends StatefulWidget {
   final UserModel? initialData;
@@ -45,7 +47,7 @@ class _ProfileFormState extends State<ProfileForm> {
       text: widget.initialData?.age.toString() ?? '',
     );
     _gamerTagController = TextEditingController(
-      text: widget.initialData?.nameTag ?? '', // Gamer tag similar al nombre
+      text: widget.initialData?.nameTag ?? '',
     );
     _profilePictureUrl =
         widget.initialData?.profilePictureUrl ??
@@ -67,102 +69,229 @@ class _ProfileFormState extends State<ProfileForm> {
       _isUploading = true;
     });
 
-    // Simular upload de imagen
     Future.delayed(const Duration(seconds: 1), () {
       if (mounted) {
         setState(() {
           _isUploading = false;
         });
-        // En una implementación real, aquí se subiría la imagen
       }
     });
   }
 
   void _handleSubmit() {
     if (_formKey.currentState?.validate() ?? false) {
-      final userData = UserModel(
-        id:
-            widget.initialData?.id ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text,
-        nameTag: _nameTagController.text,
-        age: int.tryParse(_ageController.text) ?? 1,
-        email: _emailController.text,
-        profilePictureUrl: _profilePictureUrl,
-      );
+      final name = _nameController.text;
+      final nameTag = _gamerTagController.text;
+      final age = int.tryParse(_ageController.text) ?? 1;
 
-      widget.onSave(userData);
+      // Disparar el evento de Update
+      context.read<UpdateUserBloc>().add(
+        UpdateUser(name: name, nameTag: nameTag, age: age),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF111827), // gray-900
-              Color(0xFF581C87), // purple-900
-              Color(0xFF4C1D95), // violet-900
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 448), // max-w-md
-                child: Column(
+      body: BlocListener<UpdateUserBloc, UpdateUserState>(
+        listener: (context, state) {
+          if (state is UpdateUserSuccess) {
+            // Crear el usuario actualizado con los datos del formulario
+            final updatedUser = UserModel(
+              id:
+                  widget.initialData?.id ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
+              name: _nameController.text,
+              nameTag: _nameTagController.text,
+              age: int.tryParse(_ageController.text) ?? 1,
+              email: widget.initialData?.email ?? '',
+              profilePictureUrl: _profilePictureUrl,
+            );
+
+            // Llamar al callback onSave con el usuario actualizado
+            widget.onSave(updatedUser);
+
+            // Mostrar SnackBar de éxito
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 32),
-
-                    // Botón volver al contexto anterior
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-
-                    // Header con avatar
-                    _buildAvatarSection(),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Editar Perfil',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Personaliza tu experiencia de juego',
-                      style: TextStyle(fontSize: 16, color: Color(0xFFD8B4FE)),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Formulario
-                    _buildFormCard(),
-
-                    // Información adicional
-                    const SizedBox(height: 24),
                     Text(
-                      'Los cambios se aplicarán inmediatamente',
+                      'Perfil actualizado correctamente',
                       style: TextStyle(
-                        fontSize: 14,
-                        color: const Color(0xFFA855F7).withOpacity(0.7),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    SizedBox(height: 4),
+                    Text(
+                      'Tus cambios han sido guardados exitosamente.',
+                      style: TextStyle(fontSize: 14),
+                    ),
                   ],
                 ),
+                backgroundColor: const Color(0xFF374151),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: Color(0xFF7C3AED), width: 1),
+                ),
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 3),
               ),
+            );
+
+            // Resetear el estado del bloc
+            context.read<UpdateUserBloc>().add(UpdateUserReset());
+          } else if (state is UpdateUserFailure) {
+            // Mostrar error
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Error al actualizar perfil',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Se produjo un error:",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF7F1D1D),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: Color(0xFFEF4444), width: 1),
+                ),
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+
+            // Resetear el estado del bloc
+            context.read<UpdateUserBloc>().add(UpdateUserReset());
+          }
+        },
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF111827), // gray-900
+                Color(0xFF581C87), // purple-900
+                Color(0xFF4C1D95), // violet-900
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 448),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 32),
+
+                          // Botón volver
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ),
+
+                          // Header con avatar
+                          _buildAvatarSection(),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Editar Perfil',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Personaliza tu experiencia de juego',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFFD8B4FE),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Formulario
+                          _buildFormCard(),
+
+                          // Información adicional
+                          const SizedBox(height: 24),
+                          Text(
+                            'Los cambios se aplicarán inmediatamente',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: const Color(0xFFA855F7).withOpacity(0.7),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Loading overlay
+                BlocBuilder<UpdateUserBloc, UpdateUserState>(
+                  builder: (context, state) {
+                    if (state is UpdateUserLoading) {
+                      return Container(
+                        color: Colors.black.withOpacity(0.5),
+                        child: const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF8B5CF6),
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Actualizando perfil...',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -421,7 +550,7 @@ class _ProfileFormState extends State<ProfileForm> {
     required String placeholder,
     bool required = false,
     TextInputType keyboardType = TextInputType.text,
-    bool enabled = true, // 👈 nuevo parámetro
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,7 +575,7 @@ class _ProfileFormState extends State<ProfileForm> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          enabled: enabled, // 👈 controla si se puede editar
+          enabled: enabled,
           style: const TextStyle(color: Colors.white),
           validator: required
               ? (value) {
@@ -486,6 +615,12 @@ class _ProfileFormState extends State<ProfileForm> {
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFEF4444)),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: const Color(0xFF4B5563).withOpacity(0.5),
+              ),
             ),
           ),
         ),

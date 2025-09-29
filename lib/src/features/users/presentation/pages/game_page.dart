@@ -132,9 +132,23 @@ class _DifficultySelectorState extends State<GamePage>
                     constraints: const BoxConstraints(
                       maxWidth: 672,
                     ), // max-w-2xl
+
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // Back Button
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
                         // Header
                         AnimatedBuilder(
                           animation: _headerController,

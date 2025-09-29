@@ -3,6 +3,7 @@ import 'package:cazzinitoh_2025/src/app/app.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/load_user/load_user_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/login_user/login_user_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/register_user/register_user_bloc.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/update_user/update_user_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -19,6 +20,7 @@ void main() async {
         BlocProvider(create: (_) => GetIt.instance.get<LoadUserBloc>()),
         BlocProvider(create: (_) => GetIt.instance.get<LoginUserBloc>()),
         BlocProvider(create: (_) => GetIt.instance.get<RegisterUserBloc>()),
+        BlocProvider(create: (_) => GetIt.instance.get<UpdateUserBloc>()),
       ],
       child: const MyApp(),
     ),

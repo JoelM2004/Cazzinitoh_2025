@@ -10,4 +10,5 @@ abstract class UserRepository {
   Future<Either<Failure, bool>> login(String email, String password);
   Future<Either<Failure, bool>> register(String email, String password);
   Future<Either<Failure, bool>> logout();
+  Future<Either<Failure, bool>> update(String name, String nameTag, int age);
 }

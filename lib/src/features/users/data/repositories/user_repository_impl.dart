@@ -74,4 +74,18 @@ class UserRepositoryImpl implements UserRepository {
       return Left(ServerFailure());
     }
   }
+
+  @override
+  Future<Either<Failure, bool>> update(
+    String name,
+    String nameTag,
+    int age,
+  ) async {
+    try {
+      final bool resp = await userRemoteDatasource.update(name, nameTag, age);
+      return Right(resp);
+    } on ServerFailure {
+      return Left(ServerFailure());
+    }
+  }
 }

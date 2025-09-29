@@ -11,6 +11,7 @@ abstract class UserRemoteDatasource {
   Future<bool> login(String email, String password);
   Future<bool> register(String email, String password);
   Future<bool> logout();
+  Future<bool> update(String name, String nameTag, int age);
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDatasource {
@@ -99,6 +100,42 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
       return true;
     } on FirebaseAuthException catch (e) {
       print('Register failed for user: $email -> ${e.message}');
+      return false;
+    }
+  }
+
+  Future<bool> update(String name, String nameTag, int age) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('No user is currently logged in.');
+      }
+
+      final userId = user.uid;
+
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'name': name,
+        'nameTag': nameTag,
+        'age': age,
+      });
+
+      // Actualizar el usuario en la sesión si está cargado
+      if (Session.currentUser != null && Session.currentUser!.id == userId) {
+        Session.currentUser = UserModel(
+          id: Session.currentUser!.id,
+          name: name,
+          nameTag: nameTag,
+          age: age,
+          email: Session.currentUser!.email,
+          profilePictureUrl: Session.currentUser!.profilePictureUrl,
+        );
+        print("Usuario actualizado en memoria: ${Session.currentUser!.name}");
+      }
+
+      print("Usuario actualizado en Firestore con ID: $userId");
+      return true;
+    } catch (e) {
+      print('Update failed: $e');
       return false;
     }
   }

@@ -23,13 +23,6 @@ class _ProfilePageState extends State<ProfilePage> {
             _user = userData;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Perfil guardado con éxito'),
-              backgroundColor: Colors.green,
-            ),
-          );
-
           Navigator.pop(context); // volver a la pantalla anterior si querés
         },
         onCancel: () {
