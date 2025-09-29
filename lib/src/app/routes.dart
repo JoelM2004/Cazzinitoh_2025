@@ -1,17 +1,24 @@
+import 'package:cazzinitoh_2025/src/features/users/presentation/pages/game_page.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/pages/help_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/home_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/menu_page.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 
 class AppRoutes {
   static const home = '/';
   static const menu = '/menu';
-
-  static const settings = '/settings';
-  static const contacts = '/contacts';
+  static const profile = '/profile';
+  static const leaderboard = '/leaderboard';
+  static const game = '/game';
+  static const help = '/help';
 
   static Map<String, WidgetBuilder> routes = {
     home: (context) => const HomePage(),
     menu: (context) => const MenuPage(),
+    profile: (context) => const ProfilePage(),
+    help: (context) => const HelpPage(),
+    game: (context) => const GamePage(), // Placeholder for GamePage
     // menu: (context) => const MenuScreen(),
   };
 }

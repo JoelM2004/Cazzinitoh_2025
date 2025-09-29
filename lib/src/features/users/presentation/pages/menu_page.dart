@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/routes.dart';
 import 'package:cazzinitoh_2025/src/core/session/session.dart';
 import 'package:flutter/material.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/menu/game_menu_button.dart';
@@ -5,9 +6,30 @@ import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/menu/gam
 class MenuPage extends StatelessWidget {
   const MenuPage({Key? key}) : super(key: key);
 
-  void _handleMenuAction(String action) {
+  void _handleMenuAction(BuildContext context, String action) {
     print('Acción seleccionada: $action');
-    // Aquí se implementaría la navegación correspondiente
+
+    switch (action) {
+      case 'profile':
+        Navigator.pushNamed(context, AppRoutes.profile);
+        break;
+      case 'game':
+        Navigator.pushNamed(context, AppRoutes.game);
+        break;
+      case 'help':
+        Navigator.pushNamed(context, AppRoutes.help);
+        break;
+      case 'leaderboard':
+        // Aquí hacés logout y redirigís al login/home
+        Navigator.pushReplacementNamed(context, AppRoutes.leaderboard);
+        break;
+      case 'logout':
+        // Aquí hacés logout y redirigís al login/home
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+        break;
+      default:
+        print('Acción no reconocida');
+    }
   }
 
   @override
@@ -129,7 +151,7 @@ class MenuPage extends StatelessWidget {
                         icon: const Icon(Icons.play_arrow),
                         title: 'Iniciar Desafío',
                         description: 'Comienza tu aventura',
-                        onTap: () => _handleMenuAction('iniciar-desafio'),
+                        onTap: () => _handleMenuAction(context, 'game'),
                         variant: GameMenuButtonVariant.primary,
                       ),
                       const SizedBox(height: 16),
@@ -137,7 +159,7 @@ class MenuPage extends StatelessWidget {
                         icon: const Icon(Icons.person),
                         title: 'Perfil del Jugador',
                         description: 'Configura tu personaje',
-                        onTap: () => _handleMenuAction('perfil'),
+                        onTap: () => _handleMenuAction(context, 'profile'),
                         variant: GameMenuButtonVariant.secondary,
                       ),
                       const SizedBox(height: 16),
@@ -145,7 +167,7 @@ class MenuPage extends StatelessWidget {
                         icon: const Icon(Icons.emoji_events),
                         title: 'Leaderboard',
                         description: 'Puntuaciones globales',
-                        onTap: () => _handleMenuAction('leaderboard'),
+                        onTap: () => _handleMenuAction(context, 'leaderboard'),
                         variant: GameMenuButtonVariant.secondary,
                       ),
                       const SizedBox(height: 16),
@@ -153,7 +175,7 @@ class MenuPage extends StatelessWidget {
                         icon: const Icon(Icons.help_outline),
                         title: 'Ayuda & Tutorial',
                         description: 'Aprende a jugar',
-                        onTap: () => _handleMenuAction('ayuda'),
+                        onTap: () => _handleMenuAction(context, 'help'),
                         variant: GameMenuButtonVariant.secondary,
                       ),
                     ],
