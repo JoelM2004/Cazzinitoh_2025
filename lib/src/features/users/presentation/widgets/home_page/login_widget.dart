@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/routes.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/register_user/register_user_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -535,8 +536,13 @@ class _LoginScreenState extends State<LoginScreen>
                             duration: Duration(seconds: 2),
                           ),
                         );
-                        // Navegar a la siguiente pantalla si querés
-                        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage()));
+
+                        Future.microtask(() {
+                          Navigator.of(
+                            context,
+                            rootNavigator: true,
+                          ).pushReplacementNamed(AppRoutes.menu);
+                        });
                       } else {
                         // Login fallido
                         ScaffoldMessenger.of(context).showSnackBar(
