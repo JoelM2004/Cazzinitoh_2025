@@ -1,8 +1,11 @@
+import 'package:cazzinitoh_2025/src/core/points/points.dart';
+import 'package:cazzinitoh_2025/src/features/points/presentation/pages/points_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/game_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/help_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/home_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/menu_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/profile_page.dart';
+
 import 'package:flutter/material.dart';
 
 class AppRoutes {
@@ -12,13 +15,16 @@ class AppRoutes {
   static const leaderboard = '/leaderboard';
   static const game = '/game';
   static const help = '/help';
+  static const points = '/points';
 
   static Map<String, WidgetBuilder> routes = {
     home: (context) => const HomePage(),
     menu: (context) => const MenuPage(),
     profile: (context) => const ProfilePage(),
     help: (context) => const HelpPage(),
-    game: (context) => const GamePage(), // Placeholder for GamePage
+    game: (context) => const GamePage(),
+    points: (context) =>
+        const DestinationSelectorScreen(), // Placeholder for GamePage
     // menu: (context) => const MenuScreen(),
   };
 }

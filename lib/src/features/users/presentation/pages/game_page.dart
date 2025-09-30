@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/routes.dart';
 import 'package:cazzinitoh_2025/src/core/session/session.dart';
 
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/game/difficulty_card.dart';
@@ -99,8 +100,7 @@ class _DifficultySelectorState extends State<GamePage>
   }
 
   void _handleConfirm() {
-    print('Dificultad seleccionada: $_selectedDifficulty');
-    // Aquí iría la lógica para iniciar el juego
+    Navigator.pushNamed(context, AppRoutes.points);
   }
 
   @override
