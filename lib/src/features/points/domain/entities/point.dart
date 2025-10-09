@@ -7,6 +7,7 @@ class Point {
   final String audio;
   final List<String> imageUrls;
   final LatLng coords;
+  final String address;
 
   Point({
     required this.id,
@@ -15,5 +16,6 @@ class Point {
     required this.audio,
     required this.imageUrls,
     required this.coords,
+    required this.address,
   });
 }

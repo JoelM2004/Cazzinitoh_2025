@@ -8,6 +8,7 @@ class PointModel extends Point {
     required super.audio,
     required super.imageUrls,
     required super.coords,
+    required super.address,
   });
 
   factory PointModel.fromJson(Map<String, dynamic> json) {
@@ -18,6 +19,7 @@ class PointModel extends Point {
       audio: json['audio'],
       imageUrls: json['imageUrls'],
       coords: json['coords'],
+      address: json['address'],
     );
   }
 
@@ -29,6 +31,7 @@ class PointModel extends Point {
       'audio': audio,
       'imageUrls': imageUrls,
       'coords': coords,
+      'address': address,
     };
   }
 
@@ -40,6 +43,7 @@ class PointModel extends Point {
       audio: point.audio,
       imageUrls: point.imageUrls,
       coords: point.coords,
+      address: point.address,
     );
   }
 }

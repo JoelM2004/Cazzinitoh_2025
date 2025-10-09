@@ -278,12 +278,14 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen>
                         },
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        widget.point.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFE9D5FF),
+                      Expanded(
+                        child: Text(
+                          widget.point.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFE9D5FF),
+                          ),
                         ),
                       ),
                     ],
@@ -307,6 +309,16 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen>
                     onPlay: () {
                       print('Reproduciendo audio: ${widget.point.audio}');
                     },
+                  ),
+                  const SizedBox(height: 16),
+
+                  Text(
+                    widget.point.address,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: const Color(0xFFE9D5FF).withOpacity(0.7),
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
