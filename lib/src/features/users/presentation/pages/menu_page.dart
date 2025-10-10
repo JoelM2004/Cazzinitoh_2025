@@ -178,6 +178,7 @@ class MenuPage extends StatelessWidget {
                         onTap: () => _handleMenuAction(context, 'help'),
                         variant: GameMenuButtonVariant.secondary,
                       ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),

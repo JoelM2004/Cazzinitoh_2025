@@ -41,7 +41,7 @@ class DestinationCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: point.imageUrls.isNotEmpty
-                    ? Image.network(
+                    ? Image.asset(
                         point.imageUrls[0],
                         width: 80,
                         height: 80,

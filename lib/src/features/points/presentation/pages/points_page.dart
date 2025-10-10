@@ -335,7 +335,7 @@ class _DestinationSelectorScreenState extends State<DestinationSelectorScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: selectedPoint.imageUrls.isNotEmpty
-                    ? Image.network(
+                    ? Image.asset(
                         selectedPoint.imageUrls.first,
                         width: double.infinity,
                         height: 180,

@@ -72,7 +72,7 @@ class _ImageGalleryState extends State<ImageGallery>
                     borderRadius: BorderRadius.circular(14),
                     child: Stack(
                       children: [
-                        Image.network(
+                        Image.asset(
                           widget.images[_selectedIndex],
                           width: double.infinity,
                           height: 320,
@@ -178,7 +178,7 @@ class _ImageGalleryState extends State<ImageGallery>
           borderRadius: BorderRadius.circular(6),
           child: Stack(
             children: [
-              Image.network(
+              Image.asset(
                 widget.images[index],
                 width: 80,
                 height: 80,
