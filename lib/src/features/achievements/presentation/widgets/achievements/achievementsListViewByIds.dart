@@ -85,7 +85,7 @@ class AchievementsListViewByIds extends StatelessWidget {
                       Text(
                         ach.description,
                         style: TextStyle(
-                          color: owned ? Color(0xFFD8B4FE) : Color(0xFFD8B4FE),
+                          color: owned ? Color(0xFFB794F4) : Color(0xFFD8B4FE),
                         ),
                       ),
                       const SizedBox(height: 6),

@@ -56,7 +56,7 @@ class AchievementSrc {
       description:
           'Insignia para aquellos guerreros que están iniciando con su leyenda.',
       pictureUrl: "assets/images/achievements/Top3.png",
-      requisito: 'Completa cuatro retos para conseguirlo.',
+      requisito: 'Completa cuarenta retos para conseguirlo.',
     ),
     Achievement(
       id: 8,
