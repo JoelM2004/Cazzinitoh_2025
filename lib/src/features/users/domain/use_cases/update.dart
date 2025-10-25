@@ -7,7 +7,11 @@ class UpdateUseCase {
 
   UpdateUseCase({required this.repository});
 
-  Future<Either<Failure, bool>> call(String name, String nameTag, int age) {
-    return repository.update(name, nameTag, age);
+  Future<Either<Failure, bool>> call(
+    String name,
+    String nameTag,
+    DateTime fechaNacimiento,
+  ) {
+    return repository.update(name, nameTag, fechaNacimiento);
   }
 }

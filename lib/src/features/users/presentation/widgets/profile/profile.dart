@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/update_user/update_user_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cazzinitoh_2025/src/features/achievements/presentation/widgets/achievements/achievementListView.dart';
+import 'package:cazzinitoh_2025/src/core/achievements/achievements.dart';
+import 'package:cazzinitoh_2025/src/features/achievements/presentation/widgets/achievements/achievementsListViewByIds.dart';
 
 class ProfileForm extends StatefulWidget {
   final UserModel? initialData;
@@ -20,11 +23,13 @@ class ProfileForm extends StatefulWidget {
 }
 
 class _ProfileFormState extends State<ProfileForm> {
+  DateTime? _selectedFechaNacimiento;
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _nameTagController;
-  late TextEditingController _ageController;
+  late TextEditingController _fechaNacimientoController;
   late TextEditingController _gamerTagController;
+  late TextEditingController _idAchievementsController;
 
   String _profilePictureUrl = '';
   bool _isUploading = false;
@@ -34,6 +39,13 @@ class _ProfileFormState extends State<ProfileForm> {
   @override
   void initState() {
     super.initState();
+    _selectedFechaNacimiento = widget.initialData?.fechaNacimiento;
+    _fechaNacimientoController = TextEditingController(
+      text: _selectedFechaNacimiento != null
+          ? _selectedFechaNacimiento!.toIso8601String().split('T').first
+          : '',
+    );
+
     _nameController = TextEditingController(
       text: widget.initialData?.name ?? '',
     );
@@ -42,9 +54,6 @@ class _ProfileFormState extends State<ProfileForm> {
     );
     _nameTagController = TextEditingController(
       text: widget.initialData?.nameTag ?? '',
-    );
-    _ageController = TextEditingController(
-      text: widget.initialData?.age.toString() ?? '',
     );
     _gamerTagController = TextEditingController(
       text: widget.initialData?.nameTag ?? '',
@@ -59,7 +68,7 @@ class _ProfileFormState extends State<ProfileForm> {
     _nameController.dispose();
     _emailController.dispose();
     _nameTagController.dispose();
-    _ageController.dispose();
+    _fechaNacimientoController.dispose();
     _gamerTagController.dispose();
     super.dispose();
   }
@@ -82,17 +91,24 @@ class _ProfileFormState extends State<ProfileForm> {
     if (_formKey.currentState?.validate() ?? false) {
       final name = _nameController.text;
       final nameTag = _gamerTagController.text;
-      final age = int.tryParse(_ageController.text) ?? 1;
+      // Usar la fecha seleccionada (DateTime). Si no hay fecha, usar ahora.
+      final fechaNacimiento = _selectedFechaNacimiento ?? DateTime.now();
 
-      // Disparar el evento de Update
+      // Disparar el evento de Update con DateTime
       context.read<UpdateUserBloc>().add(
-        UpdateUser(name: name, nameTag: nameTag, age: age),
+        UpdateUser(
+          name: name,
+          nameTag: nameTag,
+          fechaNacimiento: fechaNacimiento,
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final Set<int> userAchievementIds =
+        (widget.initialData?.idAchievements ?? <int>[]).toSet();
     return Scaffold(
       body: BlocListener<UpdateUserBloc, UpdateUserState>(
         listener: (context, state) {
@@ -104,9 +120,10 @@ class _ProfileFormState extends State<ProfileForm> {
                   DateTime.now().millisecondsSinceEpoch.toString(),
               name: _nameController.text,
               nameTag: _nameTagController.text,
-              age: int.tryParse(_ageController.text) ?? 1,
+              fechaNacimiento: _selectedFechaNacimiento!,
               email: widget.initialData?.email ?? '',
               profilePictureUrl: _profilePictureUrl,
+              idAchievements: widget.initialData?.idAchievements ?? [],
             );
 
             // Llamar al callback onSave con el usuario actualizado
@@ -241,7 +258,7 @@ class _ProfileFormState extends State<ProfileForm> {
                           const SizedBox(height: 32),
 
                           // Formulario
-                          _buildFormCard(),
+                          _buildFormCard(userAchievementIds),
 
                           // Información adicional
                           const SizedBox(height: 24),
@@ -388,7 +405,35 @@ class _ProfileFormState extends State<ProfileForm> {
     );
   }
 
-  Widget _buildFormCard() {
+  Future<void> _pickFechaNacimiento() async {
+    final now = DateTime.now();
+    final initial =
+        _selectedFechaNacimiento ?? DateTime(now.year - 18, now.month, now.day);
+    final firstDate = DateTime(1900);
+    final lastDate = now;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: 'Seleccioná tu fecha de nacimiento',
+      fieldLabelText: 'Fecha de nacimiento',
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedFechaNacimiento = picked;
+
+        final y = picked.year.toString().padLeft(4, '0');
+        final m = picked.month.toString().padLeft(2, '0');
+        final d = picked.day.toString().padLeft(2, '0');
+        _fechaNacimientoController.text = '$y-$m-$d';
+      });
+    }
+  }
+
+  Widget _buildFormCard(Set<int> userAchievementIds) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1F2937).withOpacity(0.5),
@@ -461,14 +506,34 @@ class _ProfileFormState extends State<ProfileForm> {
                   const SizedBox(height: 24),
 
                   // Edad
-                  _buildInputField(
-                    label: 'Edad',
-                    icon: Icons.star,
-                    controller: _ageController,
-                    placeholder: '1',
-                    keyboardType: TextInputType.number,
+                  GestureDetector(
+                    onTap: _pickFechaNacimiento,
+                    child: AbsorbPointer(
+                      child: _buildInputField(
+                        label: 'Fecha de nacimiento',
+                        icon: Icons.star,
+                        controller: _fechaNacimientoController,
+                        placeholder: 'aaaa-mm-dd',
+                        keyboardType: TextInputType.datetime,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
+
+                  const SizedBox(height: 24),
+                  Text(
+                    'Logros',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 320,
+                    child: AchievementsListViewByIds(
+                      userAchievementIds: userAchievementIds,
+                      achievementSrc: AchievementSrc(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // Botones de acción
                   Column(

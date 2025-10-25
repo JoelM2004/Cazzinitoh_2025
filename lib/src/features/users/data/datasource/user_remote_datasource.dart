@@ -11,7 +11,7 @@ abstract class UserRemoteDatasource {
   Future<bool> login(String email, String password);
   Future<bool> register(String email, String password);
   Future<bool> logout();
-  Future<bool> update(String name, String nameTag, int age);
+  Future<bool> update(String name, String nameTag, DateTime fecha);
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDatasource {
@@ -58,9 +58,48 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
           .get();
 
       if (snapshot.docs.isNotEmpty) {
-        final data = snapshot.docs.first.data();
-        Session.currentUser = UserModel.fromJson(data);
-        print("Usuario cargado en memoria: ${Session.currentUser!.name}");
+        final doc = snapshot.docs.first;
+
+        // Hacemos una copia mutable y segura del data del documento
+        final rawData = doc.data();
+        final data = rawData is Map<String, dynamic>
+            ? Map<String, dynamic>.from(rawData)
+            : <String, dynamic>{};
+
+        //para debug
+        print('--- Firestore user doc id: ${doc.id} ---');
+        print('Firestore user doc raw data: $data');
+
+        final rawFecha = data['fechaNacimiento'];
+        if (rawFecha != null) {
+          if (rawFecha is Timestamp) {
+            data['fechaNacimiento'] = rawFecha.toDate().toIso8601String();
+          } else if (rawFecha is DateTime) {
+            data['fechaNacimiento'] = rawFecha.toIso8601String();
+          } else if (rawFecha is int) {
+            data['fechaNacimiento'] = DateTime.fromMillisecondsSinceEpoch(
+              rawFecha,
+            ).toIso8601String();
+          } else if (rawFecha is String) {
+          } else {
+            print(
+              'fechaNacimiento viene en un tipo inesperado: ${rawFecha.runtimeType}',
+            );
+          }
+        } else {
+          print('fechaNacimiento es null en Firestore user doc');
+        }
+
+        data['id'] = doc.id;
+
+        try {
+          Session.currentUser = UserModel.fromJson(data);
+          print("Usuario cargado en memoria: ${Session.currentUser!.name}");
+        } catch (e, st) {
+          print('Error al convertir UserModel.fromJson: $e');
+          print('StackTrace: $st');
+          print('Data que intentamos parsear: $data');
+        }
       } else {
         print("Usuario no encontrado en Firestore");
       }
@@ -85,9 +124,10 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
         id: userId,
         name: "Nuevo usuario",
         nameTag: "tag_$userId",
-        age: 0,
+        fechaNacimiento: DateTime.now(),
         email: email,
         profilePictureUrl: "",
+        idAchievements: [],
       );
 
       await FirebaseFirestore.instance
@@ -104,7 +144,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
     }
   }
 
-  Future<bool> update(String name, String nameTag, int age) async {
+  Future<bool> update(String name, String nameTag, DateTime fecha) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -116,18 +156,18 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'name': name,
         'nameTag': nameTag,
-        'age': age,
+        'fechaNacimiento': fecha,
       });
 
-      // Actualizar el usuario en la sesión si está cargado
       if (Session.currentUser != null && Session.currentUser!.id == userId) {
         Session.currentUser = UserModel(
           id: Session.currentUser!.id,
           name: name,
           nameTag: nameTag,
-          age: age,
+          fechaNacimiento: fecha,
           email: Session.currentUser!.email,
           profilePictureUrl: Session.currentUser!.profilePictureUrl,
+          idAchievements: Session.currentUser!.idAchievements,
         );
         print("Usuario actualizado en memoria: ${Session.currentUser!.name}");
       }

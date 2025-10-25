@@ -79,10 +79,14 @@ class UserRepositoryImpl implements UserRepository {
   Future<Either<Failure, bool>> update(
     String name,
     String nameTag,
-    int age,
+    DateTime fechaNacimiento,
   ) async {
     try {
-      final bool resp = await userRemoteDatasource.update(name, nameTag, age);
+      final bool resp = await userRemoteDatasource.update(
+        name,
+        nameTag,
+        fechaNacimiento,
+      );
       return Right(resp);
     } on ServerFailure {
       return Left(ServerFailure());

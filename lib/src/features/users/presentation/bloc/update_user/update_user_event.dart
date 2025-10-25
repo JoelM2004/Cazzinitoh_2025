@@ -5,8 +5,12 @@ sealed class UpdateUserEvent {}
 class UpdateUser extends UpdateUserEvent {
   final String name;
   final String nameTag;
-  final int age;
-  UpdateUser({required this.name, required this.nameTag, required this.age});
+  final DateTime fechaNacimiento;
+  UpdateUser({
+    required this.name,
+    required this.nameTag,
+    required this.fechaNacimiento,
+  });
 }
 
 class UpdateUserReset extends UpdateUserEvent {}

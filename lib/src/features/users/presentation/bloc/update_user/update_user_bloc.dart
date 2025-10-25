@@ -13,7 +13,11 @@ class UpdateUserBloc extends Bloc<UpdateUserEvent, UpdateUserState> {
     on<UpdateUser>((event, emit) async {
       emit(UpdateUserLoading());
 
-      final resp = await _UpdateUseCase(event.name, event.nameTag, event.age);
+      final resp = await _UpdateUseCase(
+        event.name,
+        event.nameTag,
+        event.fechaNacimiento,
+      );
 
       resp.fold(
         (f) => emit(UpdateUserFailure(failure: f)),

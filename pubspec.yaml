@@ -45,6 +45,7 @@ dependencies:
   firebase_auth: ^6.1.0
   cloud_firestore: ^6.0.2
   google_maps_flutter: ^2.13.1
+  font_awesome_flutter: any
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +70,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/points/
+    - assets/images/achievements/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
