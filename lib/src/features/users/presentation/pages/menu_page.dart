@@ -21,7 +21,9 @@ class MenuPage extends StatelessWidget {
         break;
       case 'leaderboard':
         // Aquí hacés logout y redirigís al login/home
-        Navigator.pushReplacementNamed(context, AppRoutes.leaderboard);
+        //Navigator.pushReplacementNamed(context, AppRoutes.leaderboard);
+        //Navigator.pushReplacementNamed(context, AppRoutes.stats);
+        Navigator.pushReplacementNamed(context, AppRoutes.quiz);
         break;
       case 'logout':
         // Aquí hacés logout y redirigís al login/home
@@ -40,20 +42,16 @@ class MenuPage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0F172A), // slate-900
-              Color(0xFF581C87), // purple-900
-              Color(0xFF0F172A), // slate-900
-            ],
+            colors: [Color(0xFF0F172A), Color(0xFF581C87), Color(0xFF0F172A)],
           ),
         ),
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Header del juego
+                // Header
                 Column(
                   children: [
                     Container(
@@ -74,51 +72,11 @@ class MenuPage extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Stack(
-                        children: [
-                          // Gradiente de fondo
-                          Container(
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Color(0xFF7C3AED),
-                                  Color(0xFF6D28D9),
-                                  Color(0xFF5B21B6),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Imagen ocupando todo el círculo
-                          ClipOval(
-                            child: Image.network(
-                              'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFXPjQLqQ1omAaN1fe-qqg_NoDsM7rZ4L9C4TDuuA6zTHu8hGN_PEDH8-WCMc64Nt4gAg&usqp=CAU',
-                              width: 88,
-                              height: 88,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 88,
-                                  height: 88,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Color(0xFF7C3AED),
-                                        Color(0xFF6D28D9),
-                                        Color(0xFF5B21B6),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                      child: ClipOval(
+                        child: Image.network(
+                          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFXPjQLqQ1omAaN1fe-qqg_NoDsM7rZ4L9C4TDuuA6zTHu8hGN_PEDH8-WCMc64Nt4gAg&usqp=CAU',
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     const Text(
@@ -142,54 +100,55 @@ class MenuPage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 48),
+
                 // Menú principal
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 448), // max-w-md
-                  child: Column(
-                    children: [
-                      GameMenuButton(
-                        icon: const Icon(Icons.play_arrow),
-                        title: 'Iniciar Desafío',
-                        description: 'Comienza tu aventura',
-                        onTap: () => _handleMenuAction(context, 'game'),
-                        variant: GameMenuButtonVariant.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      GameMenuButton(
-                        icon: const Icon(Icons.person),
-                        title: 'Perfil del Jugador',
-                        description: 'Configura tu personaje',
-                        onTap: () => _handleMenuAction(context, 'profile'),
-                        variant: GameMenuButtonVariant.secondary,
-                      ),
-                      const SizedBox(height: 16),
-                      GameMenuButton(
-                        icon: const Icon(Icons.emoji_events),
-                        title: 'Leaderboard',
-                        description: 'Puntuaciones globales',
-                        onTap: () => _handleMenuAction(context, 'leaderboard'),
-                        variant: GameMenuButtonVariant.secondary,
-                      ),
-                      const SizedBox(height: 16),
-                      GameMenuButton(
-                        icon: const Icon(Icons.help_outline),
-                        title: 'Ayuda & Tutorial',
-                        description: 'Aprende a jugar',
-                        onTap: () => _handleMenuAction(context, 'help'),
-                        variant: GameMenuButtonVariant.secondary,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Column(
+                      children: [
+                        GameMenuButton(
+                          icon: const Icon(Icons.play_arrow),
+                          title: 'Iniciar Desafío',
+                          description: 'Comienza tu aventura',
+                          onTap: () => _handleMenuAction(context, 'game'),
+                          variant: GameMenuButtonVariant.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        GameMenuButton(
+                          icon: const Icon(Icons.person),
+                          title: 'Perfil del Jugador',
+                          description: 'Configura tu personaje',
+                          onTap: () => _handleMenuAction(context, 'profile'),
+                          variant: GameMenuButtonVariant.secondary,
+                        ),
+                        const SizedBox(height: 16),
+                        GameMenuButton(
+                          icon: const Icon(Icons.emoji_events),
+                          title: 'Leaderboard',
+                          description: 'Puntuaciones globales',
+                          onTap: () =>
+                              _handleMenuAction(context, 'leaderboard'),
+                          variant: GameMenuButtonVariant.secondary,
+                        ),
+                        const SizedBox(height: 16),
+                        GameMenuButton(
+                          icon: const Icon(Icons.help_outline),
+                          title: 'Ayuda & Tutorial',
+                          description: 'Aprende a jugar',
+                          onTap: () => _handleMenuAction(context, 'help'),
+                          variant: GameMenuButtonVariant.secondary,
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 48),
-                // Footer decorativo
-                Text(
+
+                // Footer
+                const Text(
                   'Versión 1.0 • © 2025 Memory Trip',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: const Color(0xFFA855F7).withOpacity(0.6),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFFA855F7)),
                 ),
               ],
             ),
