@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/features/games/presentation/pages/map_page.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/pages/quiz_page.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/pages/stats_page.dart';
 import 'package:cazzinitoh_2025/src/features/points/presentation/pages/points_page.dart';
@@ -30,5 +31,6 @@ class AppRoutes {
     game: (context) => const GamePage(),
     points: (context) => const DestinationSelectorScreen(),
     quiz: (context) => const QuizPage(),
+    maps: (context) => const MapPage(),
   };
 }

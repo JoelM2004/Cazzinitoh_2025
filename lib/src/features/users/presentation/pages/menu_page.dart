@@ -23,7 +23,8 @@ class MenuPage extends StatelessWidget {
         // Aquí hacés logout y redirigís al login/home
         //Navigator.pushReplacementNamed(context, AppRoutes.leaderboard);
         //Navigator.pushReplacementNamed(context, AppRoutes.stats);
-        Navigator.pushReplacementNamed(context, AppRoutes.quiz);
+        //Navigator.pushReplacementNamed(context, AppRoutes.quiz);
+        Navigator.pushReplacementNamed(context, AppRoutes.maps);
         break;
       case 'logout':
         // Aquí hacés logout y redirigís al login/home

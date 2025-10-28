@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/features/games/presentation/blocs/game_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/datasource/user_local_datasource.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/datasource/user_remote_datasource.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/repositories/user_repository_impl.dart';
@@ -20,6 +21,7 @@ Future<void> init() async {
   di.registerFactory(() => LoginUserBloc(di()));
   di.registerFactory(() => RegisterUserBloc(di()));
   di.registerFactory(() => UpdateUserBloc(di()));
+  di.registerFactory(() => GameBloc());
 
   di.registerLazySingleton(() => GetUserUseCase(repository: di()));
   di.registerLazySingleton(() => LoginUseCase(repository: di()));

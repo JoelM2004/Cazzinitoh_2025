@@ -1,5 +1,6 @@
 import 'package:cazzinitoh_2025/di.dart';
 import 'package:cazzinitoh_2025/src/app/app.dart';
+import 'package:cazzinitoh_2025/src/features/games/presentation/blocs/game_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/load_user/load_user_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/login_user/login_user_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/register_user/register_user_bloc.dart';
@@ -21,6 +22,7 @@ void main() async {
         BlocProvider(create: (_) => GetIt.instance.get<LoginUserBloc>()),
         BlocProvider(create: (_) => GetIt.instance.get<RegisterUserBloc>()),
         BlocProvider(create: (_) => GetIt.instance.get<UpdateUserBloc>()),
+        BlocProvider(create: (_) => GetIt.instance.get<GameBloc>()),
       ],
       child: const MyApp(),
     ),
