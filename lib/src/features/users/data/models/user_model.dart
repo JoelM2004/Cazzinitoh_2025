@@ -101,3 +101,24 @@ class UserModel extends User {
     );
   }
 }
+
+// Helper class para agregar puntos al usuario en el leaderboard
+class UserWithScore {
+  final UserModel user;
+  final int score;
+  final bool isCurrentUser;
+
+  const UserWithScore({
+    required this.user,
+    required this.score,
+    this.isCurrentUser = false,
+  });
+
+  String get displayName => user.nameTag.isNotEmpty ? user.nameTag : user.name;
+  String get avatar => user.profilePictureUrl;
+  String get id => user.id;
+  int get edad => user.age;
+  String get email => user.email;
+  DateTime get fechaNacimiento => user.fechaNacimiento;
+  List<int> get idAchievements => user.idAchievements;
+}

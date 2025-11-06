@@ -5,6 +5,7 @@ import 'package:cazzinitoh_2025/src/features/points/presentation/pages/points_pa
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/game_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/help_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/home_page.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/pages/leaderboard_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/menu_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/profile_page.dart';
 
@@ -27,6 +28,7 @@ class AppRoutes {
     menu: (context) => const MenuPage(),
     profile: (context) => const ProfilePage(),
     stats: (context) => const StatsPage(),
+    leaderboard: (context) => const LeaderboardScreen(),
     help: (context) => const HelpPage(),
     game: (context) => const GamePage(),
     points: (context) => const DestinationSelectorScreen(),
