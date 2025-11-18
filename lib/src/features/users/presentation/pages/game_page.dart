@@ -99,8 +99,20 @@ class _DifficultySelectorState extends State<GamePage>
     super.dispose();
   }
 
-  void _handleConfirm() {
-    Navigator.pushNamed(context, AppRoutes.points);
+  Future<void> _handleConfirm() async {
+    final result = await Navigator.pushNamed(
+      context,
+      AppRoutes.maps,
+      arguments: {'difficulty': _selectedDifficulty},
+    );
+
+    if (result != null) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.points,
+        arguments: {'fromMap': result},
+      );
+    }
   }
 
   @override

@@ -70,7 +70,7 @@ class AchievementSrc {
       id: 9,
       name: 'Gran Maestro',
       description:
-          'La fakin bestia de todas las bestias. El guerrero definitivo.',
+          'El guerrero definitivo.',
       pictureUrl: "assets/images/achievements/Top1.png",
       requisito: 'Consigue todos los logros para obtenerlo.',
     ),

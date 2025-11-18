@@ -5,7 +5,13 @@ import 'package:cazzinitoh_2025/src/features/games/presentation/widgets/maps/gam
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
+import '../../../users/presentation/widgets/game/difficulty_card.dart';
 import '../blocs/game_bloc.dart';
+import 'dart:math';
+import 'package:cazzinitoh_2025/src/app/routes.dart';
+import 'package:cazzinitoh_2025/src/features/points/domain/entities/point.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:flutter/scheduler.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -17,6 +23,13 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
 
+  // IDs de puntos seleccionados al azar
+  List<int> _randomSecuenciaIds = [];
+
+  int? _pointResaltadoId;
+
+  bool _secuenciaReproducida = false;
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +37,21 @@ class _MapPageState extends State<MapPage> {
       final state = context.read<GameBloc>().state;
       _mapController.move(state.currentLocation, state.zoom);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    // Si vienen args y todavía no se ejeccutó la secuenciaa, LA INICIAMOS
+    if (args != null && !_secuenciaReproducida) {
+      final Difficulty difficulty =
+          args['difficulty'] as Difficulty? ?? Difficulty.medium;
+      _startSequenceForDifficulty(difficulty);
+    }
   }
 
   void _showPointDialog(
@@ -109,6 +137,127 @@ class _MapPageState extends State<MapPage> {
         ],
       ),
     );
+  }
+
+  List<int> _pickRandomSequenceIds(List<Point> points, int k) {
+    final rng = Random();
+    final indices = List<int>.generate(points.length, (i) => i);
+    indices.shuffle(rng);
+    return indices.take(k).map((i) => points[i].id).toList();
+  }
+
+  Future<void> _startSequenceForDifficulty(Difficulty difficulty) async {
+    // Para que no haya muchas llamadas
+    if (_secuenciaReproducida) return;
+    _secuenciaReproducida = true;
+
+    final state = context.read<GameBloc>().state;
+    final allPoints = List<Point>.from(state.points);
+
+    final int k = (difficulty == Difficulty.easy) ? 3 : 4;
+    if (allPoints.isEmpty) return;
+
+    _randomSecuenciaIds = allPoints.length <= k
+        ? allPoints.map((p) => p.id).toList()
+        : _pickRandomSequenceIds(allPoints, k);
+
+    const showDuration = Duration(seconds: 2);
+    const interPause = Duration(milliseconds: 300);
+
+    // Para el usuario, el mensaje de la secuencia
+    if (mounted) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Observá la secuencia: memorízala')),
+        );
+      });
+    }
+
+    for (final id in _randomSecuenciaIds) {
+      if (!mounted) return;
+      setState(() {
+        _pointResaltadoId = id;
+      });
+
+      try {
+        final point = allPoints.firstWhere((p) => p.id == id);
+        _mapController.move(point.coords, context.read<GameBloc>().state.zoom);
+      } catch (_) {}
+
+      // Para mostrar por X segundos
+      await Future.delayed(showDuration);
+      if (!mounted) return;
+
+      setState(() {
+        _pointResaltadoId = null;
+      });
+
+      await Future.delayed(interPause);
+    }
+
+    // La secuencia termina y lo manda de nuevo al a pantalla de los pontis
+    final result = await Navigator.pushNamed(
+      context,
+      AppRoutes.points,
+      arguments: {'sequenceIds': _randomSecuenciaIds},
+    );
+
+    if (!mounted) return;
+
+    // Manejar elección del usuario cuando vuelve (puede ser null)
+    _handleUserChoice(result);
+  }
+
+  // Maneja lo que devuelve PointsPage, debería ser el ID o null tal vez
+  void _handleUserChoice(dynamic result) {
+    if (result == null) return;
+
+    int chosenId;
+    if (result is int) {
+      chosenId = result;
+    } else if (result is Map && result['id'] is int) {
+      chosenId = result['id'] as int;
+    } else {
+      // Este es por si el aformato no es correcto
+      return;
+    }
+
+    final state = context.read<GameBloc>().state;
+    final chosenPoint = state.points.firstWhere(
+      (p) => p.id == chosenId,
+      orElse: () => state.points.first,
+    );
+
+    final meters = _distanceBetweenLatLng(
+      state.currentLocation,
+      chosenPoint.coords,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Distancia al punto seleccionado: ${meters.round()} m'),
+      ),
+    );
+  }
+
+  // Distancia en metros entre dos LatLng
+  double _degreesToRadians(double degrees) => degrees * pi / 180.0;
+  double _distanceBetweenLatLng(LatLng a, LatLng b) {
+    final lat1 = _degreesToRadians(a.latitude);
+    final lon1 = _degreesToRadians(a.longitude);
+    final lat2 = _degreesToRadians(b.latitude);
+    final lon2 = _degreesToRadians(b.longitude);
+
+    final dLat = lat2 - lat1;
+    final dLon = lon2 - lon1;
+
+    final sinDLat = sin(dLat / 2);
+    final sinDLon = sin(dLon / 2);
+    final aCalc = sinDLat * sinDLat + cos(lat1) * cos(lat2) * sinDLon * sinDLon;
+    final c = 2 * atan2(sqrt(aCalc), sqrt(1 - aCalc));
+    const earthRadius = 6371000; // Metros
+    return earthRadius * c;
   }
 
   @override
@@ -349,7 +498,7 @@ class _MapPageState extends State<MapPage> {
   List<Marker> _buildMarkers(GameState state) {
     final markers = <Marker>[];
 
-    // Marcador de ubicación actual
+    // Ubicación actual del USuario, siempre ta visible
     markers.add(
       Marker(
         point: state.currentLocation,
@@ -360,7 +509,77 @@ class _MapPageState extends State<MapPage> {
       ),
     );
 
-    // Marcadores de puntos
+    // Para mostrar solamente el punto resaltado, los demás no
+    // Es para la secuencia, básicamente
+    if (_pointResaltadoId != null) {
+      final highlighted = _findPointById(state.points, _pointResaltadoId!);
+      if (highlighted != null) {
+        markers.add(
+          Marker(
+            point: highlighted.coords,
+            width: 200,
+            height: 180,
+            alignment: Alignment.center,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                DestinationMarkerWidget(
+                  order: state.points.indexOf(highlighted) + 1,
+                  title: highlighted.name,
+                  timeRemaining: highlighted.timeRemaining,
+                  totalTime: highlighted.totalTime,
+                  isActive: highlighted.isActive,
+                  isCompleted: highlighted.isCompleted,
+                  imageUrl: highlighted.imageUrls.isNotEmpty
+                      ? highlighted.imageUrls.first
+                      : null,
+
+                  onTap: () {
+                    if (highlighted.isActive || highlighted.isCompleted) {
+                      _showPointDialog(
+                        context,
+                        highlighted.id,
+                        highlighted.name,
+                        highlighted.description,
+                        highlighted.imageUrls,
+                      );
+                    }
+                  },
+                ),
+
+                // Acá se reasalta
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.yellow.withOpacity(0.12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.yellow.withOpacity(0.6),
+                              blurRadius: 28,
+                              spreadRadius: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return markers; // Termina devolviendo la ubi actual y el resaltado
+    }
+
+    // Si no hay resaltado, muestra TODOS los puntos
     for (int i = 0; i < state.points.length; i++) {
       final point = state.points[i];
       markers.add(
@@ -394,6 +613,14 @@ class _MapPageState extends State<MapPage> {
     }
 
     return markers;
+  }
+
+  // Busca un Point por id
+  Point? _findPointById(List<Point> points, int id) {
+    for (final p in points) {
+      if (p.id == id) return p;
+    }
+    return null;
   }
 
   Widget _buildZoomButton({

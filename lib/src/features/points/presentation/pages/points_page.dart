@@ -33,20 +33,23 @@ class _DestinationSelectorScreenState extends State<DestinationSelectorScreen> {
   }
 
   void _handleNavigate() {
+    // No hacee nada si no hay elección
+    if (_selectedDestinationId == null) return;
+
     setState(() {
       _isNavigating = true;
     });
 
+    // El mensaje de "Navegando..." y después devuelve al mapa
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        final point = points.firstWhere((p) => p.id == _selectedDestinationId);
-        print('Navegando a: ${point.name}');
+      if (!mounted) return;
 
-        setState(() {
-          _selectedDestinationId = null; // ✅ vuelve a la lista
-          _isNavigating = false;
-        });
-      }
+      final chosenId = _selectedDestinationId!;
+      final point = points.firstWhere((p) => p.id == chosenId);
+      print('Navegando a: ${point.name}');
+
+      // Devuelve el id seleccionado al MapPage
+      Navigator.pop(context, chosenId);
     });
   }
 
@@ -368,7 +371,9 @@ class _DestinationSelectorScreenState extends State<DestinationSelectorScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _handleNavigate,
+                  onPressed: _selectedDestinationId != null
+                      ? _handleNavigate
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7C3AED),
                     foregroundColor: Colors.white,
