@@ -1,10 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:cazzinitoh_2025/src/app/theme.dart';
+import 'package:cazzinitoh_2025/src/features/shared/widgets/app_alert.dart';
+import 'package:cazzinitoh_2025/src/features/shared/widgets/app_back_nav_bar.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/update_user/update_user_bloc.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cazzinitoh_2025/src/features/achievements/presentation/widgets/achievements/achievementListView.dart';
 import 'package:cazzinitoh_2025/src/core/achievements/achievements.dart';
 import 'package:cazzinitoh_2025/src/features/achievements/presentation/widgets/achievements/achievementsListViewByIds.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfileForm extends StatefulWidget {
   final UserModel? initialData;
@@ -26,15 +30,15 @@ class _ProfileFormState extends State<ProfileForm> {
   DateTime? _selectedFechaNacimiento;
   late TextEditingController _nameController;
   late TextEditingController _emailController;
-  late TextEditingController _nameTagController;
-  late TextEditingController _fechaNacimientoController;
   late TextEditingController _gamerTagController;
-  late TextEditingController _idAchievementsController;
+  late TextEditingController _fechaNacimientoController;
 
   String _profilePictureUrl = '';
+  File? _pickedImageFile;
   bool _isUploading = false;
 
   final _formKey = GlobalKey<FormState>();
+  final _picker  = ImagePicker();
 
   @override
   void initState() {
@@ -42,64 +46,142 @@ class _ProfileFormState extends State<ProfileForm> {
     _selectedFechaNacimiento = widget.initialData?.fechaNacimiento;
     _fechaNacimientoController = TextEditingController(
       text: _selectedFechaNacimiento != null
-          ? _selectedFechaNacimiento!.toIso8601String().split('T').first
+          ? _formatDate(_selectedFechaNacimiento!)
           : '',
     );
-
-    _nameController = TextEditingController(
-      text: widget.initialData?.name ?? '',
-    );
-    _emailController = TextEditingController(
-      text: widget.initialData?.email ?? '',
-    );
-    _nameTagController = TextEditingController(
-      text: widget.initialData?.nameTag ?? '',
-    );
-    _gamerTagController = TextEditingController(
-      text: widget.initialData?.nameTag ?? '',
-    );
-    _profilePictureUrl =
-        widget.initialData?.profilePictureUrl ??
-        'https://images.unsplash.com/photo-1655780004656-514350b9c8aa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYW1pbmclMjBhdmF0YXIlMjBwcm9maWxlJTIwZ290aGljfGVufDF8fHx8MTc1ODIwNDczNHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
+    _nameController     = TextEditingController(text: widget.initialData?.name ?? '');
+    _emailController    = TextEditingController(text: widget.initialData?.email ?? '');
+    _gamerTagController = TextEditingController(text: widget.initialData?.nameTag ?? '');
+    _profilePictureUrl  = widget.initialData?.profilePictureUrl ?? '';
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _nameTagController.dispose();
-    _fechaNacimientoController.dispose();
     _gamerTagController.dispose();
+    _fechaNacimientoController.dispose();
     super.dispose();
   }
 
-  void _handleAvatarUpload() {
+  String _formatDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _handleAvatarUpload() async {  
+    final source = await _showImageSourceSheet();
+    if (source == null) return;
+
+    final XFile? picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 800,
+    );
+    if (picked == null) return;
+
     setState(() {
+      _pickedImageFile = File(picked.path);
       _isUploading = true;
     });
 
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      // final url = await uploadProfilePicture(_pickedImageFile!);
+      // setState(() => _profilePictureUrl = url);
+      await Future.delayed(const Duration(seconds: 1));
+    } catch (e) {
       if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
+        AppAlert.show(
+          context,
+          type: AlertType.error,
+          title: 'Error al subir imagen',
+          message: e.toString(),
+        );
       }
-    });
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  Future<ImageSource?> _showImageSourceSheet() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.purpleCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.purpleCardBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Seleccionar imagen',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.photo_camera, color: AppColors.purpleAccent),
+                title: const Text('Cámara', style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: AppColors.purpleAccent),
+                title: const Text('Galería', style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFechaNacimiento() async {
+    final now     = DateTime.now();
+    final initial = _selectedFechaNacimiento ?? DateTime(now.year - 18, now.month, now.day);
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+      helpText: 'Seleccioná tu fecha de nacimiento',
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.purplePrimary,
+            onPrimary: Colors.white,
+            surface: AppColors.purpleCard,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedFechaNacimiento = picked;
+        _fechaNacimientoController.text = _formatDate(picked);
+      });
+    }
   }
 
   void _handleSubmit() {
     if (_formKey.currentState?.validate() ?? false) {
-      final name = _nameController.text;
-      final nameTag = _gamerTagController.text;
-      // Usar la fecha seleccionada (DateTime). Si no hay fecha, usar ahora.
-      final fechaNacimiento = _selectedFechaNacimiento ?? DateTime.now();
-
-      // Disparar el evento de Update con DateTime
       context.read<UpdateUserBloc>().add(
         UpdateUser(
-          name: name,
-          nameTag: nameTag,
-          fechaNacimiento: fechaNacimiento,
+          name: _nameController.text,
+          nameTag: _gamerTagController.text,
+          fechaNacimiento: _selectedFechaNacimiento ?? DateTime.now(),
+          profilePictureUrl: _pickedImageFile != null ? _profilePictureUrl : null,
         ),
       );
     }
@@ -109,94 +191,41 @@ class _ProfileFormState extends State<ProfileForm> {
   Widget build(BuildContext context) {
     final Set<int> userAchievementIds =
         (widget.initialData?.idAchievements ?? <int>[]).toSet();
+
     return Scaffold(
+      // ── Navbar global minimalista ──────────────────────────────────────
+      appBar: const AppBackNavBar(title: 'Editar Perfil'),
+      extendBodyBehindAppBar: true,
       body: BlocListener<UpdateUserBloc, UpdateUserState>(
         listener: (context, state) {
           if (state is UpdateUserSuccess) {
-            // Crear el usuario actualizado con los datos del formulario
             final updatedUser = UserModel(
-              id:
-                  widget.initialData?.id ??
-                  DateTime.now().millisecondsSinceEpoch.toString(),
+              id: widget.initialData?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
               name: _nameController.text,
-              nameTag: _nameTagController.text,
+              nameTag: _gamerTagController.text,
               fechaNacimiento: _selectedFechaNacimiento!,
               email: widget.initialData?.email ?? '',
-              profilePictureUrl: _profilePictureUrl,
+              profilePictureUrl: _pickedImageFile != null
+                  ? _profilePictureUrl
+                  : widget.initialData?.profilePictureUrl ?? '',
               idAchievements: widget.initialData?.idAchievements ?? [],
             );
 
-            // Llamar al callback onSave con el usuario actualizado
             widget.onSave(updatedUser);
-
-            // Mostrar SnackBar de éxito
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Perfil actualizado correctamente',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Tus cambios han sido guardados exitosamente.',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-                backgroundColor: const Color(0xFF374151),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: Color(0xFF7C3AED), width: 1),
-                ),
-                margin: const EdgeInsets.all(16),
-                duration: const Duration(seconds: 3),
-              ),
+            AppAlert.show(
+              context,
+              type: AlertType.success,
+              title: 'Perfil actualizado',
+              message: 'Tus cambios han sido guardados exitosamente.',
             );
-
-            // Resetear el estado del bloc
             context.read<UpdateUserBloc>().add(UpdateUserReset());
           } else if (state is UpdateUserFailure) {
-            // Mostrar error
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Error al actualizar perfil',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Se produjo un error:",
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-                backgroundColor: const Color(0xFF7F1D1D),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: Color(0xFFEF4444), width: 1),
-                ),
-                margin: const EdgeInsets.all(16),
-                duration: const Duration(seconds: 4),
-              ),
+            AppAlert.show(
+              context,
+              type: AlertType.error,
+              title: 'Error al actualizar',
+              message: state.failure.toString(),
             );
-
-            // Resetear el estado del bloc
             context.read<UpdateUserBloc>().add(UpdateUserReset());
           }
         },
@@ -206,9 +235,9 @@ class _ProfileFormState extends State<ProfileForm> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0xFF111827), // gray-900
-                Color(0xFF581C87), // purple-900
-                Color(0xFF4C1D95), // violet-900
+                AppColors.purpleBackground,
+                AppColors.purple900,
+                Color(0xFF4C1D95),
               ],
             ),
           ),
@@ -222,51 +251,26 @@ class _ProfileFormState extends State<ProfileForm> {
                       constraints: const BoxConstraints(maxWidth: 448),
                       child: Column(
                         children: [
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 16),
 
-                          // Botón volver
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                          ),
-
-                          // Header con avatar
+                          // Avatar
                           _buildAvatarSection(),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Editar Perfil',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 20),
+
                           const Text(
                             'Personaliza tu experiencia de juego',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFFD8B4FE),
-                            ),
+                            style: TextStyle(fontSize: 15, color: AppColors.purple300),
                           ),
                           const SizedBox(height: 32),
 
-                          // Formulario
                           _buildFormCard(userAchievementIds),
+                          const SizedBox(height: 20),
 
-                          // Información adicional
-                          const SizedBox(height: 24),
                           Text(
                             'Los cambios se aplicarán inmediatamente',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: const Color(0xFFA855F7).withOpacity(0.7),
+                              fontSize: 13,
+                              color: AppColors.purpleAccent.withOpacity(0.7),
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -281,24 +285,18 @@ class _ProfileFormState extends State<ProfileForm> {
                   builder: (context, state) {
                     if (state is UpdateUserLoading) {
                       return Container(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withOpacity(0.6),
                         child: const Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF8B5CF6),
-                                ),
+                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.purpleBorder),
                               ),
                               SizedBox(height: 16),
                               Text(
                                 'Actualizando perfil...',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
@@ -317,6 +315,20 @@ class _ProfileFormState extends State<ProfileForm> {
   }
 
   Widget _buildAvatarSection() {
+    Widget imageContent;
+
+    if (_pickedImageFile != null) {
+      imageContent = Image.file(_pickedImageFile!, fit: BoxFit.cover);
+    } else if (_profilePictureUrl.isNotEmpty) {
+      imageContent = Image.network(
+        _profilePictureUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _avatarPlaceholder(),
+      );
+    } else {
+      imageContent = _avatarPlaceholder();
+    }
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -325,79 +337,40 @@ class _ProfileFormState extends State<ProfileForm> {
           height: 128,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF8B5CF6), width: 4),
+            border: Border.all(color: AppColors.purpleBorder, width: 3),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF8B5CF6).withOpacity(0.25),
-                blurRadius: 16,
-                spreadRadius: 0,
+                color: AppColors.purpleGlow.withOpacity(0.4),
+                blurRadius: 20,
+                spreadRadius: 2,
               ),
             ],
           ),
-          child: ClipOval(
-            child: _profilePictureUrl.isNotEmpty
-                ? Image.network(
-                    _profilePictureUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFF6B21A8),
-                        child: const Icon(
-                          Icons.person,
-                          size: 48,
-                          color: Color(0xFFD8B4FE),
-                        ),
-                      );
-                    },
-                  )
-                : Container(
-                    color: const Color(0xFF6B21A8),
-                    child: const Icon(
-                      Icons.person,
-                      size: 48,
-                      color: Color(0xFFD8B4FE),
-                    ),
-                  ),
-          ),
+          child: ClipOval(child: imageContent),
         ),
         Positioned(
           bottom: 0,
-          left: 0,
           right: 0,
-          child: Center(
-            child: Transform.translate(
-              offset: const Offset(0, 12),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _isUploading
-                      ? const Color(0xFF6D28D9)
-                      : const Color(0xFF7C3AED),
-                  shape: BoxShape.circle,
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _isUploading ? null : _handleAvatarUpload,
-                    customBorder: const CircleBorder(),
-                    child: const Center(
-                      child: Icon(
-                        Icons.camera_alt,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
+          child: GestureDetector(
+            onTap: _isUploading ? null : _handleAvatarUpload,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.purplePrimary,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.purpleBackground, width: 2),
+                boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
               ),
+              child: _isUploading
+                  ? const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.camera_alt, size: 18, color: Colors.white),
             ),
           ),
         ),
@@ -405,78 +378,46 @@ class _ProfileFormState extends State<ProfileForm> {
     );
   }
 
-  Future<void> _pickFechaNacimiento() async {
-    final now = DateTime.now();
-    final initial =
-        _selectedFechaNacimiento ?? DateTime(now.year - 18, now.month, now.day);
-    final firstDate = DateTime(1900);
-    final lastDate = now;
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: firstDate,
-      lastDate: lastDate,
-      helpText: 'Seleccioná tu fecha de nacimiento',
-      fieldLabelText: 'Fecha de nacimiento',
-    );
-
-    if (picked != null) {
-      setState(() {
-        _selectedFechaNacimiento = picked;
-
-        final y = picked.year.toString().padLeft(4, '0');
-        final m = picked.month.toString().padLeft(2, '0');
-        final d = picked.day.toString().padLeft(2, '0');
-        _fechaNacimientoController.text = '$y-$m-$d';
-      });
-    }
-  }
+  Widget _avatarPlaceholder() => Container(
+        color: AppColors.purple900,
+        child: const Icon(Icons.person, size: 52, color: AppColors.purple300),
+      );
 
   Widget _buildFormCard(Set<int> userAchievementIds) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2937).withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF8B5CF6).withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 24, spreadRadius: 0),
-        ],
+        color: AppColors.purpleCard.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.purpleBorder.withOpacity(0.3)),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 24)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card Header
           Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
             child: Row(
               children: const [
-                Icon(Icons.shield, size: 20, color: Color(0xFFD8B4FE)),
+                Icon(Icons.shield, size: 18, color: AppColors.purple300),
                 SizedBox(width: 8),
                 Text(
                   'Información Personal',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFD8B4FE),
+                    color: AppColors.purple300,
                   ),
                 ),
               ],
             ),
           ),
-
-          // Card Content
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Nombre
                   _buildInputField(
                     label: 'Nombre de Usuario',
                     icon: Icons.person,
@@ -484,18 +425,16 @@ class _ProfileFormState extends State<ProfileForm> {
                     placeholder: 'Ingresa tu nombre',
                     required: true,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Gamer Tag
                   _buildInputField(
                     label: 'Gamer Tag',
                     icon: Icons.emoji_events,
                     controller: _gamerTagController,
                     placeholder: 'Tu identificador único',
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Email
                   _buildInputField(
                     label: 'Correo Electrónico (No modificable)',
                     controller: _emailController,
@@ -503,108 +442,209 @@ class _ProfileFormState extends State<ProfileForm> {
                     keyboardType: TextInputType.emailAddress,
                     enabled: false,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Edad
                   GestureDetector(
                     onTap: _pickFechaNacimiento,
                     child: AbsorbPointer(
                       child: _buildInputField(
                         label: 'Fecha de nacimiento',
-                        icon: Icons.star,
+                        icon: Icons.calendar_today,
                         controller: _fechaNacimientoController,
                         placeholder: 'aaaa-mm-dd',
                         keyboardType: TextInputType.datetime,
+                        suffix: const Icon(Icons.expand_more, color: AppColors.purpleAccent),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
-                  const SizedBox(height: 24),
-                  Text(
-                    'Logros',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 320,
-                    child: AchievementsListViewByIds(
-                      userAchievementIds: userAchievementIds,
-                      achievementSrc: AchievementSrc(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  _buildAchievementsSection(userAchievementIds),
+                  const SizedBox(height: 28),
 
-                  // Botones de acción
-                  Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _handleSubmit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: const Color(
-                              0xFF8B5CF6,
-                            ).withOpacity(0.25),
-                            elevation: 8,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: EdgeInsets.zero,
-                          ),
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Container(
-                              alignment: Alignment.center,
-                              child: const Text(
-                                'Guardar Cambios',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: OutlinedButton(
-                          onPressed: widget.onCancel,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFD1D5DB),
-                            side: const BorderSide(color: Color(0xFF4B5563)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Cancelar',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildActionButtons(),
                 ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAchievementsSection(Set<int> userAchievementIds) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.purple900.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.purpleBorder.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.purplePrimary.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.military_tech, size: 16, color: AppColors.purpleAccent),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mis Logros',
+                      style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      'Tus conquistas en el desafío',
+                      style: TextStyle(color: AppColors.purpleAccent, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.purplePrimary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${userAchievementIds.length}',
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        userAchievementIds.isEmpty
+            ? _buildEmptyAchievements()
+            : Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.purpleCardBorder.withOpacity(0.4)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: AchievementsListViewByIds(
+                  userAchievementIds: userAchievementIds,
+                  achievementSrc: AchievementSrc(),
+                ),
+              ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyAchievements() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      decoration: BoxDecoration(
+        color: AppColors.purpleBackground.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.purpleCardBorder.withOpacity(0.3),
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 40,
+              color: AppColors.purpleAccent.withOpacity(0.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Aún no hay logros desbloqueados',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.purpleAccent.withOpacity(0.6),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '¡Completá desafíos para ganarlos!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _handleSubmit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              shadowColor: AppColors.purpleGlow.withOpacity(0.3),
+              elevation: 8,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: EdgeInsets.zero,
+            ),
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.purplePrimary, Color(0xFF6D28D9)],
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Container(
+                alignment: Alignment.center,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.save_rounded, size: 18, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'Guardar Cambios',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton(
+            onPressed: widget.onCancel,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.grey.shade300,
+              side: BorderSide(color: AppColors.purpleCardBorder),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -616,6 +656,7 @@ class _ProfileFormState extends State<ProfileForm> {
     bool required = false,
     TextInputType keyboardType = TextInputType.text,
     bool enabled = true,
+    Widget? suffix,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,69 +664,54 @@ class _ProfileFormState extends State<ProfileForm> {
         Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: const Color(0xFFE9D5FF)),
-              const SizedBox(width: 8),
+              Icon(icon, size: 15, color: AppColors.purple300),
+              const SizedBox(width: 7),
             ],
             Text(
               label,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFFE9D5FF),
+                color: AppColors.purple300,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 7),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           enabled: enabled,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white, fontSize: 15),
           validator: required
-              ? (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Este campo es requerido';
-                  }
-                  return null;
-                }
+              ? (v) => (v == null || v.isEmpty) ? 'Este campo es requerido' : null
               : null,
           decoration: InputDecoration(
             hintText: placeholder,
-            hintStyle: TextStyle(
-              color: const Color(0xFFD8B4FE).withOpacity(0.5),
-            ),
+            hintStyle: TextStyle(color: AppColors.purple300.withOpacity(0.4)),
             filled: true,
-            fillColor: const Color(0xFF374151).withOpacity(0.5),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
+            fillColor: AppColors.purpleCardBorder.withOpacity(0.4),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            suffixIcon: suffix,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: const Color(0xFF8B5CF6).withOpacity(0.5),
-              ),
+              borderSide: BorderSide(color: AppColors.purpleBorder.withOpacity(0.4)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: const Color(0xFF8B5CF6).withOpacity(0.5),
-              ),
+              borderSide: BorderSide(color: AppColors.purpleBorder.withOpacity(0.4)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFA855F7), width: 2),
+              borderSide: const BorderSide(color: AppColors.purpleAccent, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFEF4444)),
+              borderSide: const BorderSide(color: AppColors.red500),
             ),
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: const Color(0xFF4B5563).withOpacity(0.5),
-              ),
+              borderSide: BorderSide(color: AppColors.purpleCardBorder.withOpacity(0.3)),
             ),
           ),
         ),

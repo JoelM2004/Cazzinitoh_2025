@@ -11,7 +11,7 @@ abstract class UserRemoteDatasource {
   Future<bool> login(String email, String password);
   Future<bool> register(String email, String password);
   Future<bool> logout();
-  Future<bool> update(String name, String nameTag, DateTime fecha);
+  Future<bool> update(String name, String nameTag, DateTime fecha,String? profilePictureUrl,);
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDatasource {
@@ -144,41 +144,54 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
     }
   }
 
-  Future<bool> update(String name, String nameTag, DateTime fecha) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('No user is currently logged in.');
-      }
-
-      final userId = user.uid;
-
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'name': name,
-        'nameTag': nameTag,
-        'fechaNacimiento': fecha,
-      });
-
-      if (Session.currentUser != null && Session.currentUser!.id == userId) {
-        Session.currentUser = UserModel(
-          id: Session.currentUser!.id,
-          name: name,
-          nameTag: nameTag,
-          fechaNacimiento: fecha,
-          email: Session.currentUser!.email,
-          profilePictureUrl: Session.currentUser!.profilePictureUrl,
-          idAchievements: Session.currentUser!.idAchievements,
-        );
-        print("Usuario actualizado en memoria: ${Session.currentUser!.name}");
-      }
-
-      print("Usuario actualizado en Firestore con ID: $userId");
-      return true;
-    } catch (e) {
-      print('Update failed: $e');
-      return false;
+  Future<bool> update(
+  String name,
+  String nameTag,
+  DateTime fechaNacimiento,
+  String? profilePictureUrl, // null = no se cambió la foto
+) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('No user is currently logged in.');
+ 
+    final userId = user.uid;
+ 
+    // Armar el mapa solo con los campos que cambian
+    final Map<String, dynamic> data = {
+      'name': name,
+      'nameTag': nameTag,
+      'fechaNacimiento': Timestamp.fromDate(fechaNacimiento),
+    };
+ 
+    if (profilePictureUrl != null) {
+      data['profilePictureUrl'] = profilePictureUrl;
     }
+ 
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .update(data);
+ 
+    // Actualizar sesión en memoria
+    if (Session.currentUser != null && Session.currentUser!.id == userId) {
+      Session.currentUser = UserModel(
+        id: Session.currentUser!.id,
+        name: name,
+        nameTag: nameTag,
+        fechaNacimiento: fechaNacimiento,
+        email: Session.currentUser!.email,
+        profilePictureUrl:
+            profilePictureUrl ?? Session.currentUser!.profilePictureUrl,
+        idAchievements: Session.currentUser!.idAchievements,
+      );
+    }
+ 
+    return true;
+  } catch (e) {
+    print('Update failed: $e');
+    return false;
   }
+}
 
   Future<bool> logout() async {
     try {

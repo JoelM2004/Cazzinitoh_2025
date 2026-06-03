@@ -17,6 +17,7 @@ class UpdateUserBloc extends Bloc<UpdateUserEvent, UpdateUserState> {
         event.name,
         event.nameTag,
         event.fechaNacimiento,
+        event.profilePictureUrl,
       );
 
       resp.fold(

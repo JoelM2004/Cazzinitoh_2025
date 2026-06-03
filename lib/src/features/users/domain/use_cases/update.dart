@@ -11,7 +11,8 @@ class UpdateUseCase {
     String name,
     String nameTag,
     DateTime fechaNacimiento,
+    String? profilePictureUrl,
   ) {
-    return repository.update(name, nameTag, fechaNacimiento);
+    return repository.update(name, nameTag, fechaNacimiento, profilePictureUrl);
   }
 }

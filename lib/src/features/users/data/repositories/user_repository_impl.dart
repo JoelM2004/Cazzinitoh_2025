@@ -80,12 +80,14 @@ class UserRepositoryImpl implements UserRepository {
     String name,
     String nameTag,
     DateTime fechaNacimiento,
+    String? profilePictureUrl,
   ) async {
     try {
       final bool resp = await userRemoteDatasource.update(
         name,
         nameTag,
         fechaNacimiento,
+        profilePictureUrl
       );
       return Right(resp);
     } on ServerFailure {
