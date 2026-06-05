@@ -55,22 +55,10 @@ class _ProfileFormState extends State<ProfileForm> {
   }
 
   Future<void> _onImagePicked(File file) async {
-    setState(() {
-      _pickedImageFile = file;
-      _isUploading = true;
-    });
-    try {
-      // final url = await uploadProfilePicture(file);
-      // setState(() => _profilePictureUrl = url);
-      await Future.delayed(const Duration(seconds: 1)); // placeholder
-    } catch (e) {
-      if (mounted) {
-        AppAlert.show(context, type: AlertType.error, title: 'Error al subir imagen', message: e.toString());
-      }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
-    }
-  }
+  setState(() {
+    _pickedImageFile = file;
+  });
+}
 
   void _handleSubmit() {
     if (_formKey.currentState?.validate() ?? false) {
@@ -79,7 +67,7 @@ class _ProfileFormState extends State<ProfileForm> {
           name: _nameController.text,
           nameTag: _gamerTagController.text,
           fechaNacimiento: _selectedFechaNacimiento ?? DateTime.now(),
-          profilePictureUrl: _pickedImageFile != null ? _profilePictureUrl : null,
+          profilePictureUrl: _pickedImageFile?.path,
         ),
       );
     }
@@ -111,7 +99,7 @@ class _ProfileFormState extends State<ProfileForm> {
             AppAlert.show(context, type: AlertType.success, title: 'Perfil actualizado', message: 'Tus cambios han sido guardados exitosamente.');
             context.read<UpdateUserBloc>().add(UpdateUserReset());
           } else if (state is UpdateUserFailure) {
-            AppAlert.show(context, type: AlertType.error, title: 'Error al actualizar', message: state.failure.toString());
+            AppAlert.show(context, type: AlertType.error, title: 'Error al actualizar', message: state.failure.message);
             context.read<UpdateUserBloc>().add(UpdateUserReset());
           }
         },

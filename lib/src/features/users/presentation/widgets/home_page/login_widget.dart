@@ -288,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen>
                         context,
                         type: AlertType.error,
                         title: 'Error',
-                        message: state.failure.toString(),
+                        message: state.failure.message,
                       );
                     }
                   },
@@ -385,7 +385,7 @@ class _LoginScreenState extends State<LoginScreen>
                       context,
                       type: AlertType.error,
                       title: 'Error',
-                      message: state.failure.toString(),
+                      message: state.failure.message,
                     );
                   }
                 },

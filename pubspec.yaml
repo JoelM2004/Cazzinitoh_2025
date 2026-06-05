@@ -41,9 +41,6 @@ dependencies:
   hive : ^2.2.3
   hive_flutter: ^1.1.0  
   material_symbols_icons: ^4.2873.0
-  firebase_core: ^4.1.1
-  firebase_auth: ^6.1.0
-  cloud_firestore: ^6.0.2
   google_maps_flutter: ^2.13.1
   font_awesome_flutter: any
   provider: ^6.1.1
@@ -53,9 +50,10 @@ dependencies:
   cached_network_image: ^3.3.0
   intl: ^0.18.1
   image_picker: ^1.2.0
-  firebase_storage: ^13.0.2
-  maplibre_gl: ^0.20.0
+  flutter_web_auth_2: ^4.0.0   # o la última disponible
+  maplibre_gl: ^0.21.0          # o la última disponible
   http: ^1.2.0
+  appwrite: ^20.3.1
   
 dev_dependencies:
   flutter_test:

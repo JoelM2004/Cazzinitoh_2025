@@ -1,238 +1,231 @@
+// lib/src/features/users/data/datasources/user_remote_datasource.dart
+import 'package:appwrite/appwrite.dart';
+import 'package:appwrite/models.dart' as models;
+import 'package:cazzinitoh_2025/src/core/appwrite/appwrite_client.dart';
+import 'package:cazzinitoh_2025/src/core/error/failures.dart';
 import 'package:cazzinitoh_2025/src/core/session/session.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/stats_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 abstract class UserRemoteDatasource {
-  Future<UserModel> getUser(int userId);
-  Future<StatsModel> getStats(int userId);
+  Future<UserModel> getUser(String userId);
+  Future<StatsModel> getStats(String userId);
   Future<bool> login(String email, String password);
   Future<bool> register(String email, String password);
   Future<bool> logout();
-  Future<bool> update(String name, String nameTag, DateTime fecha,String? profilePictureUrl,);
+  Future<bool> update(
+    String name,
+    String nameTag,
+    DateTime fecha,
+    String? profilePictureUrl,
+  );
   Future<List<UserWithScore>> getLeaderboard();
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDatasource {
-  final Dio dio = Dio();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  //esto es para consultar APIS remotadas, en un futuro o si usamos firebase por ejemplo jeje
+  final Client _client = AppwriteConfig.client;
+  late final Account _account;
+  late final Databases _databases;
+  late final Storage _storage;
+
+  UserRemoteDataSourceImpl() {
+    _account = Account(_client);
+    _databases = Databases(_client);
+    _storage = Storage(_client);
+  }
+
+  // ─── AUTH ────────────────────────────────────────────────────────────────
+
   @override
-  Future<UserModel> getUser(int userId) async {
-    final response = await dio.get('https://api.example.com/users/$userId');
-
-    if (response.statusCode == 200) {
-      return UserModel.fromJson(response.data);
-    } else {
-      throw Exception('Failed to load user');
-    }
-  }
-
-  Future<StatsModel> getStats(int userId) async {
-    final response = await dio.get(
-      'https://api.example.com/users/$userId/stats',
-    );
-
-    if (response.statusCode == 200) {
-      return StatsModel.fromJson(response.data);
-    } else {
-      throw Exception('Failed to load stats');
-    }
-  }
-
   Future<bool> login(String email, String password) async {
     try {
-      final credential = await _auth.signInWithEmailAndPassword(
+
+      try {
+        await _account.deleteSession(sessionId: 'current');
+      } catch (_) {} // ignorar si no había sesión
+
+      await _account.createEmailPasswordSession(
         email: email,
         password: password,
       );
 
-      print('Login successful for user: $email');
+      final result = await _databases.listDocuments(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.usersCollectionId,
+        queries: [Query.equal('email', email), Query.limit(1)],
+      );
 
-      // Buscar en Firestore el user
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first;
-
-        // Hacemos una copia mutable y segura del data del documento
-        final rawData = doc.data();
-        final data = rawData is Map<String, dynamic>
-            ? Map<String, dynamic>.from(rawData)
-            : <String, dynamic>{};
-
-        //para debug
-        print('--- Firestore user doc id: ${doc.id} ---');
-        print('Firestore user doc raw data: $data');
-
-        final rawFecha = data['fechaNacimiento'];
-        if (rawFecha != null) {
-          if (rawFecha is Timestamp) {
-            data['fechaNacimiento'] = rawFecha.toDate().toIso8601String();
-          } else if (rawFecha is DateTime) {
-            data['fechaNacimiento'] = rawFecha.toIso8601String();
-          } else if (rawFecha is int) {
-            data['fechaNacimiento'] = DateTime.fromMillisecondsSinceEpoch(
-              rawFecha,
-            ).toIso8601String();
-          } else if (rawFecha is String) {
-          } else {
-            print(
-              'fechaNacimiento viene en un tipo inesperado: ${rawFecha.runtimeType}',
-            );
-          }
-        } else {
-          print('fechaNacimiento es null en Firestore user doc');
-        }
-
-        data['id'] = doc.id;
-
-        try {
-          Session.currentUser = UserModel.fromJson(data);
-          print("Usuario cargado en memoria: ${Session.currentUser!.name}");
-        } catch (e, st) {
-          print('Error al convertir UserModel.fromJson: $e');
-          print('StackTrace: $st');
-          print('Data que intentamos parsear: $data');
-        }
-      } else {
-        print("Usuario no encontrado en Firestore");
+      if (result.documents.isNotEmpty) {
+        Session.currentUser = _docToUserModel(result.documents.first);
+        print('Usuario cargado: ${Session.currentUser!.name}');
       }
 
       return true;
-    } on FirebaseAuthException catch (e) {
-      print('Login failed for user: $email -> ${e.message}');
-      return false;
+    } on AppwriteException catch (e) {
+      print(e.message);
+      throw ServerFailure(message: e.message ?? 'Login fallido');
     }
   }
 
+  @override
   Future<bool> register(String email, String password) async {
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
+      final authUser = await _account.create(
+        userId: ID.unique(),
         email: email,
         password: password,
       );
 
-      final userId = credential.user!.uid; // ID único del Auth
-
-      final newUser = UserModel(
-        id: userId,
-        name: "Nuevo usuario",
-        nameTag: "tag_$userId",
-        fechaNacimiento: DateTime.now(),
+      await _account.createEmailPasswordSession(
         email: email,
-        profilePictureUrl: "",
-        idAchievements: [],
+        password: password,
       );
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .set(newUser.toJson());
+      await _databases.createDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.usersCollectionId,
+        documentId: authUser.$id,
+        data: {
+          'name': 'Nuevo usuario',
+          'nameTag': 'tag_${authUser.$id.substring(0, 8)}',
+          'fechaNacimiento': DateTime.now().toIso8601String(),
+          'email': email,
+          'role': 1,
+        },
+      );
 
-      print("Usuario registrado en Firestore con ID: $userId");
-
+      print('Usuario registrado con ID: ${authUser.$id}');
       return true;
-    } on FirebaseAuthException catch (e) {
-      print('Register failed for user: $email -> ${e.message}');
-      return false;
+    } on AppwriteException catch (e) {
+      throw ServerFailure(message: e.message ?? 'Registro fallido');
     }
   }
 
-  Future<bool> update(
-  String name,
-  String nameTag,
-  DateTime fechaNacimiento,
-  String? profilePictureUrl, // null = no se cambió la foto
-) async {
-  try {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('No user is currently logged in.');
- 
-    final userId = user.uid;
- 
-    // Armar el mapa solo con los campos que cambian
-    final Map<String, dynamic> data = {
-      'name': name,
-      'nameTag': nameTag,
-      'fechaNacimiento': Timestamp.fromDate(fechaNacimiento),
-    };
- 
-    if (profilePictureUrl != null) {
-      data['profilePictureUrl'] = profilePictureUrl;
-    }
- 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .update(data);
- 
-    // Actualizar sesión en memoria
-    if (Session.currentUser != null && Session.currentUser!.id == userId) {
-      Session.currentUser = UserModel(
-        id: Session.currentUser!.id,
-        name: name,
-        nameTag: nameTag,
-        fechaNacimiento: fechaNacimiento,
-        email: Session.currentUser!.email,
-        profilePictureUrl:
-            profilePictureUrl ?? Session.currentUser!.profilePictureUrl,
-        idAchievements: Session.currentUser!.idAchievements,
-      );
-    }
- 
-    return true;
-  } catch (e) {
-    print('Update failed: $e');
-    return false;
-  }
-}
-
+  @override
   Future<bool> logout() async {
     try {
-      await _auth.signOut();
-      Session.currentUser = null; // Limpiar usuario en memoria
-      print("Usuario deslogueado y Session limpia");
+      await _account.deleteSession(sessionId: 'current');
+      Session.currentUser = null;
+      print('Sesión cerrada');
       return true;
-    } catch (e) {
-      throw Exception('Logout failed: $e');
+    } on AppwriteException catch (e) {
+      throw ServerFailure(message: e.message ?? 'Logout fallido');
     }
   }
+
+  // ─── USUARIO ─────────────────────────────────────────────────────────────
+
+  @override
+  Future<UserModel> getUser(String userId) async {
+    try {
+      final doc = await _databases.getDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.usersCollectionId,
+        documentId: userId,
+      );
+      return _docToUserModel(doc);
+    } on AppwriteException catch (e) {
+      throw ServerFailure(message: e.message ?? 'Error al obtener usuario');
+    }
+  }
+
+  @override
+  Future<bool> update(
+    String name,
+    String nameTag,
+    DateTime fechaNacimiento,
+    String? profilePictureUrl,
+  ) async {
+    try {
+      final account = await _account.get();
+      final userId = account.$id;
+
+      String? finalPictureUrl = profilePictureUrl;
+
+      if (profilePictureUrl != null && !profilePictureUrl.startsWith('http')) {
+        final file = await _storage.createFile(
+          bucketId: AppwriteConfig.avatarsBucketId,
+          fileId: ID.unique(),
+          file: InputFile.fromPath(path: profilePictureUrl),
+        );
+        finalPictureUrl =
+            '${AppwriteConfig.endpoint}/storage/buckets/${AppwriteConfig.avatarsBucketId}/files/${file.$id}/view?project=${AppwriteConfig.projectId}';
+      }
+
+      final Map<String, dynamic> data = {
+        'name': name,
+        'nameTag': nameTag,
+        'fechaNacimiento': fechaNacimiento.toIso8601String(),
+      };
+
+      if (finalPictureUrl != null) {
+        data['profilePictureUrl'] = finalPictureUrl;
+      }
+
+      await _databases.updateDocument(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.usersCollectionId,
+        documentId: userId,
+        data: data,
+      );
+
+      if (Session.currentUser != null) {
+        Session.currentUser = UserModel(
+          id: userId,
+          name: name,
+          nameTag: nameTag,
+          fechaNacimiento: fechaNacimiento,
+          email: Session.currentUser!.email,
+          profilePictureUrl:
+              finalPictureUrl ?? Session.currentUser!.profilePictureUrl,
+          idAchievements: Session.currentUser!.idAchievements,
+        );
+      }
+
+      return true;
+    } on AppwriteException catch (e) {
+      throw ServerFailure(message: e.message ?? 'Error al actualizar usuario');
+    }
+  }
+
+  // ─── LEADERBOARD ─────────────────────────────────────────────────────────
 
   @override
   Future<List<UserWithScore>> getLeaderboard() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .orderBy('score', descending: true)
-        .get();
- 
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
- 
-    return snapshot.docs.map((doc) {
-      final data = Map<String, dynamic>.from(doc.data());
- 
-      final rawFecha = data['fechaNacimiento'];
-      if (rawFecha is Timestamp) {
-        data['fechaNacimiento'] = rawFecha.toDate().toIso8601String();
-      }
- 
-      data['id'] = doc.id;
- 
-      final user = UserModel.fromJson(data);
-      final score = (data['score'] as num?)?.toInt() ?? 0;
-      final isCurrentUser = doc.id == currentUserId;
- 
-      return UserWithScore(
-        user: user,
-        score: score,
-        isCurrentUser: isCurrentUser,
+    try {
+      final result = await _databases.listDocuments(
+        databaseId: AppwriteConfig.databaseId,
+        collectionId: AppwriteConfig.usersCollectionId,
+        queries: [Query.orderDesc('score'), Query.limit(100)],
       );
-    }).toList();
+
+      final currentAccount = await _account.get().catchError((_) => null);
+      final currentUserId = currentAccount?.$id;
+
+      return result.documents.map((doc) {
+        final user = _docToUserModel(doc);
+        final score = (doc.data['score'] as num?)?.toInt() ?? 0;
+        return UserWithScore(
+          user: user,
+          score: score,
+          isCurrentUser: doc.$id == currentUserId,
+        );
+      }).toList();
+    } on AppwriteException catch (e) {
+      throw ServerFailure(message: e.message ?? 'Error al obtener leaderboard');
+    }
+  }
+
+  @override
+  Future<StatsModel> getStats(String userId) async {
+    throw UnimplementedError();
+  }
+
+  // ─── HELPER ──────────────────────────────────────────────────────────────
+
+  UserModel _docToUserModel(models.Document doc) {
+    final data = Map<String, dynamic>.from(doc.data);
+    data['id'] = doc.$id;
+    return UserModel.fromJson(data);
   }
 }

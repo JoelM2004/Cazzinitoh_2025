@@ -1,3 +1,5 @@
+// lib/src/features/users/data/repositories/user_repository_impl.dart
+
 import 'package:cazzinitoh_2025/src/core/error/failures.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/datasource/user_local_datasource.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/datasource/user_remote_datasource.dart';
@@ -21,28 +23,28 @@ class UserRepositoryImpl implements UserRepository {
     try {
       final bool resp = await userLocalDataSource.cacheUser(user);
       return Right(resp);
-    } on LocalFailure {
-      return Left(LocalFailure());
+    } on LocalFailure catch (e) {  // ← capturá la variable
+      return Left(e);
     }
   }
 
   @override
   Future<Either<Failure, User>> getUser(int id) async {
     try {
-      final User user = await userRemoteDatasource.getUser(id);
+      final User user = await userRemoteDatasource.getUser(id.toString());
       return Right(user);
-    } on ServerFailure {
-      return Left(ServerFailure());
+    } on ServerFailure catch (e) {  // ← capturá la variable
+      return Left(e);
     }
   }
 
   @override
   Future<Either<Failure, Stats>> getStats(int id) async {
     try {
-      final Stats stats = await userRemoteDatasource.getStats(id);
+      final Stats stats = await userRemoteDatasource.getStats(id.toString());
       return Right(stats);
-    } on ServerFailure {
-      return Left(ServerFailure());
+    } on ServerFailure catch (e) {
+      return Left(e);
     }
   }
 
@@ -51,8 +53,8 @@ class UserRepositoryImpl implements UserRepository {
     try {
       final bool resp = await userRemoteDatasource.login(email, password);
       return Right(resp);
-    } on ServerFailure {
-      return Left(ServerFailure());
+    } on ServerFailure catch (e) {
+      return Left(e);
     }
   }
 
@@ -61,8 +63,8 @@ class UserRepositoryImpl implements UserRepository {
     try {
       final bool resp = await userRemoteDatasource.register(email, password);
       return Right(resp);
-    } on ServerFailure {
-      return Left(ServerFailure());
+    } on ServerFailure catch (e) {
+      return Left(e);
     }
   }
 
@@ -71,8 +73,8 @@ class UserRepositoryImpl implements UserRepository {
     try {
       final bool resp = await userRemoteDatasource.logout();
       return Right(resp);
-    } on ServerFailure {
-      return Left(ServerFailure());
+    } on ServerFailure catch (e) {
+      return Left(e);
     }
   }
 
@@ -88,11 +90,11 @@ class UserRepositoryImpl implements UserRepository {
         name,
         nameTag,
         fechaNacimiento,
-        profilePictureUrl
+        profilePictureUrl,
       );
       return Right(resp);
-    } on ServerFailure {
-      return Left(ServerFailure());
+    } on ServerFailure catch (e) {
+      return Left(e);
     }
   }
 
@@ -102,8 +104,8 @@ class UserRepositoryImpl implements UserRepository {
       final List<UserWithScore> players =
           await userRemoteDatasource.getLeaderboard();
       return Right(players);
-    } on ServerFailure {
-      return Left(ServerFailure());
+    } on ServerFailure catch (e) {
+      return Left(e);
     }
   }
 }

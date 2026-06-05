@@ -1,6 +1,9 @@
+// lib/src/features/users/presentation/pages/game_page.dart
 import 'package:cazzinitoh_2025/src/app/routes.dart';
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:cazzinitoh_2025/src/core/session/session.dart';
-
+import 'package:cazzinitoh_2025/src/features/shared/widgets/app_alert.dart';
+import 'package:cazzinitoh_2025/src/features/shared/widgets/app_back_nav_bar.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/game/difficulty_card.dart';
 import 'package:flutter/material.dart';
 
@@ -8,11 +11,10 @@ class GamePage extends StatefulWidget {
   const GamePage({Key? key}) : super(key: key);
 
   @override
-  State<GamePage> createState() => _DifficultySelectorState();
+  State<GamePage> createState() => _GamePageState();
 }
 
-class _DifficultySelectorState extends State<GamePage>
-    with TickerProviderStateMixin {
+class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   Difficulty _selectedDifficulty = Difficulty.medium;
 
   late final List<DifficultyOption> _difficultyOptions;
@@ -27,7 +29,6 @@ class _DifficultySelectorState extends State<GamePage>
   void initState() {
     super.initState();
     final age = Session.currentUser?.age ?? 0;
-    print("La edad es: ${age}");
 
     _difficultyOptions = [
       DifficultyOption(
@@ -53,7 +54,6 @@ class _DifficultySelectorState extends State<GamePage>
       ),
     ];
 
-    // Header animation
     _headerController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -64,11 +64,10 @@ class _DifficultySelectorState extends State<GamePage>
     );
 
     _headerOffset =
-        Tween<Offset>(begin: const Offset(0, -0.5), end: Offset.zero).animate(
-          CurvedAnimation(parent: _headerController, curve: Curves.easeOut),
-        );
+        Tween<Offset>(begin: const Offset(0, -0.4), end: Offset.zero).animate(
+      CurvedAnimation(parent: _headerController, curve: Curves.easeOut),
+    );
 
-    // Button animation
     _buttonController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -78,17 +77,14 @@ class _DifficultySelectorState extends State<GamePage>
       CurvedAnimation(parent: _buttonController, curve: Curves.easeOut),
     );
 
-    _buttonOffset = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _buttonController, curve: Curves.easeOut),
-        );
+    _buttonOffset =
+        Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+      CurvedAnimation(parent: _buttonController, curve: Curves.easeOut),
+    );
 
-    // Start animations
     _headerController.forward();
     Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) {
-        _buttonController.forward();
-      }
+      if (mounted) _buttonController.forward();
     });
   }
 
@@ -100,13 +96,30 @@ class _DifficultySelectorState extends State<GamePage>
   }
 
   Future<void> _handleConfirm() async {
+    // Mostrar info del nivel seleccionado antes de navegar
+    final labels = {
+      Difficulty.easy: 'Fácil',
+      Difficulty.medium: 'Medio',
+      Difficulty.hard: 'Difícil',
+    };
+
+    AppAlert.show(
+      context,
+      type: AlertType.info,
+      title: 'Iniciando desafío',
+      message: 'Nivel ${labels[_selectedDifficulty]} seleccionado. ¡Buena suerte!',
+      duration: const Duration(seconds: 2),
+    );
+
+    await Future.delayed(const Duration(milliseconds: 600));
+
     final result = await Navigator.pushNamed(
       context,
       AppRoutes.maps,
       arguments: {'difficulty': _selectedDifficulty},
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       Navigator.pushNamed(
         context,
         AppRoutes.points,
@@ -116,189 +129,160 @@ class _DifficultySelectorState extends State<GamePage>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF000000), // black
-              Color(0xFF111827), // gray-900
-              Color(0xFF581C87), // purple-900
-            ],
-          ),
+Widget build(BuildContext context) {
+  return Scaffold(
+    extendBodyBehindAppBar: true,
+    appBar: AppBackNavBar(title: 'Memory Trip'),  // ← acá
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.purpleBackground,
+            AppColors.purple900,
+            Color(0xFF0d0d1a),
+          ],
         ),
-        child: Stack(
-          children: [
-            // Decorative circles
-            _buildDecorativeCircles(),
+      ),
+      child: Stack(
+        children: [
+          _buildDecorativeCircles(),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 672),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 16),
 
-            // Main content
-            SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 672,
-                    ), // max-w-2xl
-
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Back Button
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-                        // Header
-                        AnimatedBuilder(
-                          animation: _headerController,
-                          builder: (context, child) {
-                            return FadeTransition(
-                              opacity: _headerOpacity,
-                              child: SlideTransition(
-                                position: _headerOffset,
-                                child: Column(
-                                  children: [
-                                    ShaderMask(
-                                      shaderCallback: (bounds) {
-                                        return const LinearGradient(
-                                          colors: [
-                                            Colors.white,
-                                            Color(0xFFD8B4FE), // purple-300
-                                          ],
-                                        ).createShader(bounds);
-                                      },
-                                      child: const Text(
-                                        'Memory Trip',
-                                        style: TextStyle(
-                                          fontSize: 48,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'Elige tu nivel de desafío y adéntrate en el misterio',
-                                      textAlign: TextAlign.center,
+                      // Header
+                      AnimatedBuilder(
+                        animation: _headerController,
+                        builder: (context, child) {
+                          return FadeTransition(
+                            opacity: _headerOpacity,
+                            child: SlideTransition(
+                              position: _headerOffset,
+                              child: Column(
+                                children: [
+                                  ShaderMask(
+                                    shaderCallback: (bounds) =>
+                                        const LinearGradient(
+                                      colors: [
+                                        Colors.white,
+                                        AppColors.purple300,
+                                      ],
+                                    ).createShader(bounds),
+                                    child: const Text(
+                                      'Elegí tu desafío',
                                       style: TextStyle(
-                                        fontSize: 18,
-                                        color: Color(0xFFD1D5DB),
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Seleccioná el nivel y adentrate en el misterio',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: AppColors.purple300.withOpacity(0.8),
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 48),
+
+                      // Cards
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isDesktop = constraints.maxWidth > 640;
+                          if (isDesktop) {
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                _difficultyOptions.length,
+                                (index) => Padding(
+                                  padding: EdgeInsets.only(
+                                    right: index < _difficultyOptions.length - 1 ? 24 : 0,
+                                  ),
+                                  child: _buildDifficultyCard(index),
                                 ),
                               ),
                             );
-                          },
-                        ),
-
-                        const SizedBox(height: 48),
-
-                        // Difficulty Cards
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isDesktop = constraints.maxWidth > 768;
-
-                            if (isDesktop) {
-                              return Row(
-                                children: List.generate(
-                                  _difficultyOptions.length,
-                                  (index) {
-                                    return Expanded(
-                                      child: Padding(
-                                        padding: EdgeInsets.only(
-                                          right:
-                                              index <
-                                                  _difficultyOptions.length - 1
-                                              ? 24
-                                              : 0,
-                                        ),
-                                        child: _buildDifficultyCard(index),
-                                      ),
-                                    );
-                                  },
+                          } else {
+                            return Column(
+                              children: List.generate(
+                                _difficultyOptions.length,
+                                (index) => Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: index < _difficultyOptions.length - 1 ? 20 : 0,
+                                  ),
+                                  child: _buildDifficultyCard(index),
                                 ),
-                              );
-                            } else {
-                              return Column(
-                                children: List.generate(
-                                  _difficultyOptions.length,
-                                  (index) {
-                                    return Padding(
-                                      padding: EdgeInsets.only(
-                                        bottom:
-                                            index <
-                                                _difficultyOptions.length - 1
-                                            ? 24
-                                            : 0,
-                                      ),
-                                      child: _buildDifficultyCard(index),
-                                    );
-                                  },
-                                ),
-                              );
-                            }
-                          },
-                        ),
-
-                        const SizedBox(height: 40),
-
-                        // Confirm Button
-                        AnimatedBuilder(
-                          animation: _buttonController,
-                          builder: (context, child) {
-                            return FadeTransition(
-                              opacity: _buttonOpacity,
-                              child: SlideTransition(
-                                position: _buttonOffset,
-                                child: _buildConfirmButton(),
                               ),
                             );
-                          },
-                        ),
-                      ],
-                    ),
+                          }
+                        },
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Botón confirmar
+                      AnimatedBuilder(
+                        animation: _buttonController,
+                        builder: (context, child) {
+                          return FadeTransition(
+                            opacity: _buttonOpacity,
+                            child: SlideTransition(
+                              position: _buttonOffset,
+                              child: _buildConfirmButton(),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 32),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDifficultyCard(int index) {
     return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 600 + (index * 100)),
+      duration: Duration(milliseconds: 500 + (index * 120)),
       tween: Tween(begin: 0.0, end: 1.0),
       curve: Curves.easeOut,
       builder: (context, value, child) {
         return Opacity(
           opacity: value,
           child: Transform.translate(
-            offset: Offset(0, 20 * (1 - value)),
+            offset: Offset(0, 24 * (1 - value)),
             child: DifficultyCard(
               option: _difficultyOptions[index],
               isSelected: _selectedDifficulty == _difficultyOptions[index].id,
-              onTap: () {
-                setState(() {
-                  _selectedDifficulty = _difficultyOptions[index].id;
-                });
-              },
+              onTap: () => setState(() {
+                _selectedDifficulty = _difficultyOptions[index].id;
+              }),
               animationDelay: index * 100,
             ),
           ),
@@ -308,83 +292,70 @@ class _DifficultySelectorState extends State<GamePage>
   }
 
   Widget _buildConfirmButton() {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: _handleConfirm,
-        child: TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 200),
-          tween: Tween(begin: 1.0, end: 1.0),
-          builder: (context, scale, child) {
-            return Transform.scale(
-              scale: scale,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.5),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                      blurRadius: 16,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.shield, size: 20, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'Iniciar Desafío',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
+    return GestureDetector(
+      onTap: _handleConfirm,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.purple700, AppColors.purple900],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.purpleBorder.withOpacity(0.6),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.purpleGlow.withOpacity(0.4),
+              blurRadius: 20,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.shield_rounded, size: 20, color: Colors.white),
+            SizedBox(width: 10),
+            Text(
+              'Iniciar Desafío',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: 0.3,
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDecorativeCircles() {
-    return Stack(
-      children: [
-        // Top-left circle
-        Positioned(top: 40, left: 40, child: _buildPulsingCircle(80, 0)),
-        // Bottom-right circle
-        Positioned(bottom: 40, right: 40, child: _buildPulsingCircle(64, 1000)),
-        // Middle-left circle
-        Positioned(
-          top: MediaQuery.of(context).size.height / 2,
-          left: 20,
-          child: _buildPulsingCircle(48, 500),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPulsingCircle(double size, int delay) {
+ Widget _buildDecorativeCircles() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      return Stack(
+        children: [
+          Positioned(top: 40, left: 40, child: _buildCircle(80, AppColors.purple500, 0)),
+          Positioned(bottom: 40, right: 40, child: _buildCircle(64, AppColors.purpleAccent, 1000)),
+          Positioned(
+            top: constraints.maxHeight / 2,  // ← usa constraints en vez de MediaQuery
+            left: 20,
+            child: _buildCircle(48, AppColors.purple700, 500),
+          ),
+        ],
+      );
+    },
+  );
+}
+  Widget _buildCircle(double size, Color color, int delay) {
     return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 2000),
-      tween: Tween(begin: 0.6, end: 1.0),
+      duration: Duration(milliseconds: 2000 + delay),
+      tween: Tween(begin: 0.3, end: 0.8),
       curve: Curves.easeInOut,
+      onEnd: () => setState(() {}),
       builder: (context, value, child) {
         return AnimatedOpacity(
           duration: Duration(milliseconds: 2000 + delay),
@@ -395,20 +366,12 @@ class _DifficultySelectorState extends State<GamePage>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: delay == 0
-                    ? const Color(0xFF8B5CF6).withOpacity(0.2)
-                    : delay == 500
-                    ? const Color(0xFF7C3AED).withOpacity(0.2)
-                    : const Color(0xFFA855F7).withOpacity(0.2),
+                color: color.withOpacity(0.2),
                 width: 1,
               ),
             ),
           ),
         );
-      },
-      onEnd: () {
-        // Loop animation
-        setState(() {});
       },
     );
   }

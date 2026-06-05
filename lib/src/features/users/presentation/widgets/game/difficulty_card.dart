@@ -1,4 +1,6 @@
+// lib/src/features/users/presentation/widgets/game/difficulty_card.dart
 import 'package:flutter/material.dart';
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 
 enum Difficulty { easy, medium, hard }
 
@@ -51,7 +53,6 @@ class _DifficultyCardState extends State<DifficultyCard>
   void initState() {
     super.initState();
 
-    // Pulse animation for recommended card background
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 3000),
       vsync: this,
@@ -65,7 +66,6 @@ class _DifficultyCardState extends State<DifficultyCard>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Badge animation
     _badgeController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
@@ -87,8 +87,26 @@ class _DifficultyCardState extends State<DifficultyCard>
     super.dispose();
   }
 
+  // Color del borde según dificultad
+  Color get _difficultyColor {
+    switch (widget.option.id) {
+      case Difficulty.easy:
+        return const Color(0xFF22c55e);   // verde
+      case Difficulty.medium:
+        return AppColors.purplePrimary;   // purple del theme
+      case Difficulty.hard:
+        return AppColors.red500;          // rojo del theme
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final borderColor = widget.isSelected
+        ? _difficultyColor
+        : widget.option.recommended
+            ? AppColors.purpleBorder.withOpacity(0.4)
+            : AppColors.purpleCardBorder.withOpacity(0.4);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
@@ -102,56 +120,44 @@ class _DifficultyCardState extends State<DifficultyCard>
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Main Card
             AnimatedScale(
-              scale: _isPressed
-                  ? 0.98
-                  : _isHovering
-                  ? 1.05
-                  : 1.0,
-              duration: const Duration(milliseconds: 300),
+              scale: _isPressed ? 0.97 : _isHovering ? 1.04 : 1.0,
+              duration: const Duration(milliseconds: 250),
               curve: Curves.easeOut,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                width: 200, // 👈 ancho fijo
-                height: 280, // 👈 alto fijo
+                width: 200,
+                height: 290,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: widget.isSelected
-                        ? const Color(0xFFA855F7)
-                        : widget.option.recommended
-                        ? const Color(0xFF7C3AED).withOpacity(0.3)
-                        : const Color(0xFF7C3AED).withOpacity(0.3),
-                    width: 2,
-                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderColor, width: 2),
                   color: widget.isSelected
-                      ? const Color(0xFF581C87).withOpacity(0.3)
-                      : const Color(0xFF1F2937).withOpacity(0.4),
+                      ? AppColors.purple900.withOpacity(0.35)
+                      : AppColors.purpleCard.withOpacity(0.45),
                   boxShadow: [
                     if (widget.isSelected)
                       BoxShadow(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                        blurRadius: 16,
+                        color: _difficultyColor.withOpacity(0.35),
+                        blurRadius: 20,
                         spreadRadius: 0,
                       ),
-                    if (widget.option.recommended)
+                    if (widget.option.recommended && !widget.isSelected)
                       BoxShadow(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.4),
+                        color: AppColors.purpleGlow.withOpacity(0.3),
                         blurRadius: 24,
                         spreadRadius: 0,
                       ),
                     if (_isHovering && !widget.isSelected)
                       BoxShadow(
-                        color: const Color(0xFF9333EA).withOpacity(0.5),
-                        blurRadius: 30,
+                        color: _difficultyColor.withOpacity(0.4),
+                        blurRadius: 28,
                         spreadRadius: 0,
                       ),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    // Animated background for recommended
+                    // Fondo animado para recommended
                     if (widget.option.recommended)
                       AnimatedBuilder(
                         animation: _pulseController,
@@ -162,12 +168,12 @@ class _DifficultyCardState extends State<DifficultyCard>
                               scale: _pulseScale.value,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(14),
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      const Color(0xFF7C3AED).withOpacity(0.2),
+                                      AppColors.purple700.withOpacity(0.25),
                                       Colors.transparent,
                                     ],
                                   ),
@@ -178,46 +184,60 @@ class _DifficultyCardState extends State<DifficultyCard>
                         },
                       ),
 
-                    // Ring for recommended
+                    // Ring recomendado
                     if (widget.option.recommended)
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: const Color(0xFFA855F7).withOpacity(0.5),
-                              width: 2,
+                              color: AppColors.purpleBorder.withOpacity(0.4),
+                              width: 1.5,
                             ),
                           ),
                         ),
                       ),
 
-                    // Content
+                    // Contenido
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            widget.option.icon,
-                            style: const TextStyle(fontSize: 48),
+                          // Ícono con glow
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _difficultyColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _difficultyColor.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              widget.option.icon,
+                              style: const TextStyle(fontSize: 36),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             widget.option.title,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              color: widget.isSelected
+                                  ? _difficultyColor
+                                  : Colors.white,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           Text(
                             widget.option.description,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFFD1D5DB),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.purple300.withOpacity(0.8),
                               height: 1.5,
                             ),
                           ),
@@ -225,7 +245,7 @@ class _DifficultyCardState extends State<DifficultyCard>
                       ),
                     ),
 
-                    // Selection indicator
+                    // Indicador de selección
                     if (widget.isSelected)
                       Positioned(
                         top: 12,
@@ -240,18 +260,15 @@ class _DifficultyCardState extends State<DifficultyCard>
                               child: Container(
                                 width: 24,
                                 height: 24,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF8B5CF6),
+                                decoration: BoxDecoration(
+                                  color: _difficultyColor,
                                   shape: BoxShape.circle,
                                 ),
-                                child: Center(
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                    ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.check,
+                                    size: 14,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
@@ -264,11 +281,11 @@ class _DifficultyCardState extends State<DifficultyCard>
               ),
             ),
 
-            // Recommended Badge
+            // Badge recomendado
             if (widget.option.recommended)
               Positioned(
-                top: -8,
-                right: -8,
+                top: -10,
+                right: -10,
                 child: AnimatedBuilder(
                   animation: _badgeController,
                   builder: (context, child) {
@@ -278,28 +295,27 @@ class _DifficultyCardState extends State<DifficultyCard>
                         scale: _badgeScale.value,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 10,
+                            vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF7C3AED),
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.purplePrimary,
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: const Color(0xFFA855F7),
+                              color: AppColors.purpleBorder,
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF8B5CF6).withOpacity(0.5),
+                                color: AppColors.purpleGlow.withOpacity(0.5),
                                 blurRadius: 8,
-                                spreadRadius: 0,
                               ),
                             ],
                           ),
                           child: const Text(
                             'Recomendado',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
                             ),
