@@ -11,7 +11,10 @@ import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/load_user/l
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/login_user/login_user_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/register_user/register_user_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/update_user/update_user_bloc.dart';
+import 'package:cazzinitoh_2025/src/features/users/domain/use_cases/get_leaderboard_use_case.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/leaderboard/leaderboard_bloc.dart';
 import 'package:get_it/get_it.dart';
+
 
 final di = GetIt.instance;
 
@@ -22,16 +25,20 @@ Future<void> init() async {
   di.registerFactory(() => RegisterUserBloc(di()));
   di.registerFactory(() => UpdateUserBloc(di()));
   di.registerFactory(() => GameBloc());
+  di.registerFactory(() => LeaderboardBloc(di()));
 
   di.registerLazySingleton(() => GetUserUseCase(repository: di()));
   di.registerLazySingleton(() => LoginUseCase(repository: di()));
   di.registerLazySingleton(() => RegisterUseCase(repository: di()));
   di.registerLazySingleton(() => UpdateUseCase(repository: di()));
+  di.registerLazySingleton(() => GetLeaderboardUseCase(repository: di()));
+
 
   di.registerLazySingleton<UserRepository>(
     () => UserRepositoryImpl(
       userLocalDataSource: di(),
       userRemoteDatasource: di(),
+      
     ),
   );
 

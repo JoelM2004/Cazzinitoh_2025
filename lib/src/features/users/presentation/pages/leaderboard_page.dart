@@ -1,172 +1,203 @@
 import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/leaderboard/leaderboard_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/leaderboard/ImageWithFallback.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/leaderboard/PodiumPosition.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/leaderboard/RankingList.dart';
+import 'package:cazzinitoh_2025/src/features/shared/widgets/shared_widgets.dart';
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class LeaderboardScreen extends StatelessWidget {
+class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
-  static final List<UserWithScore> mockPlayers = [
-    UserWithScore(
-      user: UserModel(
-        id: "1",
-        name: "Escudero",
-        nameTag: "ESCUDETOOO",
-        fechaNacimiento: DateTime(1995, 5, 15),
-        email: "escudero@example.com",
-        profilePictureUrl:
-            "https://a.espncdn.com/combiner/i?img=/i/headshots/rpm/players/full/348.png&w=350&h=254",
-        idAchievements: [1, 5, 9],
-      ),
-      score: 15420,
-    ),
-    UserWithScore(
-      user: UserModel(
-        id: "2",
-        name: "Gaspar",
-        nameTag: "GASPACHO",
-        fechaNacimiento: DateTime(1998, 3, 22),
-        email: "gaspar@example.com",
-        profilePictureUrl:
-            "https://images.unsplash.com/photo-1675310854573-c5c8e4089426?w=400",
-        idAchievements: [2, 7],
-      ),
-      score: 14850,
-    ),
-    UserWithScore(
-      user: UserModel(
-        id: "3",
-        name: "Carlos",
-        nameTag: "LA CABRA",
-        fechaNacimiento: DateTime(1996, 8, 10),
-        email: "carlos@example.com",
-        profilePictureUrl:
-            "https://images.unsplash.com/photo-1675310854573-c5c8e4089426?w=400",
-        idAchievements: [3, 4, 8],
-      ),
-      score: 13290,
-    ),
-    UserWithScore(
-      user: UserModel(
-        id: "4",
-        name: "Buffalo",
-        nameTag: "EL BUFFALO KING",
-        fechaNacimiento: DateTime(1997, 11, 5),
-        email: "buffalo@example.com",
-        profilePictureUrl:
-            "https://soymotor.com/sites/default/files/2025-03/cleclerc_2025.png",
-        idAchievements: [1, 2, 3, 6],
-      ),
-      score: 12100,
-      isCurrentUser: true,
-    ),
-    UserWithScore(
-      user: UserModel(
-        id: "5",
-        name: "Locuras",
-        nameTag: "LOCURAS2004 PAGA",
-        fechaNacimiento: DateTime(2004, 1, 20),
-        email: "locuras@example.com",
-        profilePictureUrl:
-            "https://images.unsplash.com/photo-1622349851524-890cc3641b87?w=400",
-        idAchievements: [5],
-      ),
-      score: 11800,
-    ),
-    UserWithScore(
-      user: UserModel(
-        id: "6",
-        name: "Internautica",
-        nameTag: "LA LOCURA INTERNAUTICA",
-        fechaNacimiento: DateTime(1999, 6, 30),
-        email: "internautica@example.com",
-        profilePictureUrl:
-            "https://images.unsplash.com/photo-1675310854573-c5c8e4089426?w=400",
-        idAchievements: [7, 9],
-      ),
-      score: 10950,
-    ),
-  ];
+  @override
+  State<LeaderboardScreen> createState() => _LeaderboardScreenState();
+}
 
+class _LeaderboardScreenState extends State<LeaderboardScreen> {
   static const String trophyImage =
       "https://images.unsplash.com/photo-1754300681803-61eadeb79d10?w=400";
 
   @override
+  void initState() {
+    super.initState();
+    context.read<LeaderboardBloc>().add(LoadLeaderboard());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final currentUser = mockPlayers.firstWhere(
-      (player) => player.isCurrentUser,
-      orElse: () => mockPlayers.first,
-    );
-    final currentUserRank = mockPlayers.indexOf(currentUser) + 1;
-
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.purple,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      home: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF0F172A), // slate-900
-                Color(0xFF581C87), // purple-900
-                Color(0xFF0F172A), // slate-900
-              ],
-            ),
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBackNavBar(title: 'Clasificación'),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.purpleBackground,
+              AppColors.purple900,
+              AppColors.purpleBackground,
+            ],
           ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 448),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Header con premio
-                        _buildHeader(),
-                        const SizedBox(height: 32),
-
-                        // Puntuación del usuario actual
-                        _buildCurrentUserCard(currentUser, currentUserRank),
-                        const SizedBox(height: 24),
-
-                        // Podio
-                        _buildPodium(),
-                        const SizedBox(height: 32),
-
-                        // Ranking completo
-                        _buildRankingSection(),
-                        const SizedBox(height: 32),
-
-                        // Botones de acción
-                        _buildActionButtons(),
-                        const SizedBox(height: 32),
-
-                        // Footer
-                        _buildFooter(),
-                      ],
+        ),
+        child: SafeArea(
+          child: BlocListener<LeaderboardBloc, LeaderboardState>(
+            listener: (context, state) {
+              if (state is LeaderboardFailure) {
+                AppAlert.show(
+                  context,
+                  type: AlertType.error,
+                  title: 'Error al cargar',
+                  message: state.failure.toString(),
+                );
+              }
+            },
+            child: BlocBuilder<LeaderboardBloc, LeaderboardState>(
+              builder: (context, state) => switch (state) {
+                LeaderboardInitial() => const SizedBox.shrink(),
+                LeaderboardLoading() => const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.purpleBorder,
                     ),
                   ),
-                ),
-              ),
+                LeaderboardSuccess(:final players) when players.isEmpty =>
+                  const _EmptyView(),
+                LeaderboardSuccess(:final players) =>
+                  _LeaderboardContent(players: players, trophyImage: trophyImage),
+                LeaderboardFailure() => _EmptyRetryView(),
+              },
             ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildHeader() {
+// ─── Empty (lista vacía) ──────────────────────────────────────────────────────
+
+class _EmptyView extends StatelessWidget {
+  const _EmptyView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.emoji_events_outlined,
+                color: AppColors.purple300, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              'Sin jugadores aún',
+              style: AppTextStyles.h2.copyWith(color: AppColors.darkForeground),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Completá el desafío para aparecer en el ranking.',
+              style: AppTextStyles.p
+                  .copyWith(color: AppColors.darkMutedForeground),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            AppButton.ghost(
+              label: 'Reintentar',
+              icon: Icons.refresh,
+              onPressed: () =>
+                  context.read<LeaderboardBloc>().add(LoadLeaderboard()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Error retry ──────────────────────────────────────────────────────────────
+
+class _EmptyRetryView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AppButton.ghost(
+        label: 'Reintentar',
+        icon: Icons.refresh,
+        onPressed: () =>
+            context.read<LeaderboardBloc>().add(LoadLeaderboard()),
+      ),
+    );
+  }
+}
+
+// ─── Content ──────────────────────────────────────────────────────────────────
+
+class _LeaderboardContent extends StatelessWidget {
+  final List<UserWithScore> players;
+  final String trophyImage;
+
+  const _LeaderboardContent({
+    required this.players,
+    required this.trophyImage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final top3 = players.take(3).toList();
+    final rest = players.length > 3 ? players.sublist(3) : <UserWithScore>[];
+
+    final currentUserIndex = players.indexWhere((p) => p.isCurrentUser);
+    final currentUser =
+        currentUserIndex != -1 ? players[currentUserIndex] : null;
+    final currentUserRank =
+        currentUserIndex != -1 ? currentUserIndex + 1 : null;
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 448),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _Header(trophyImage: trophyImage),
+                const SizedBox(height: 32),
+                if (currentUser != null && currentUserRank != null) ...[
+                  _CurrentUserCard(user: currentUser, rank: currentUserRank),
+                  const SizedBox(height: 24),
+                ],
+                if (top3.isNotEmpty) ...[
+                  _Podium(top3: top3),
+                  const SizedBox(height: 32),
+                ],
+                if (rest.isNotEmpty) ...[
+                  _RankingSection(rest: rest),
+                  const SizedBox(height: 32),
+                ],
+                _ActionButtons(),
+                const SizedBox(height: 32),
+                _Footer(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  final String trophyImage;
+  const _Header({required this.trophyImage});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         ImageWithFallback(
@@ -175,39 +206,44 @@ class LeaderboardScreen extends StatelessWidget {
           height: 80,
           borderRadius: 40,
           borderWidth: 4,
-          borderColor: const Color(0xFFFBBF24), // yellow-400
+          borderColor: const Color(0xFFFBBF24),
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Clasificación Final',
-          style: TextStyle(
-            fontSize: 28,
+          style: AppTextStyles.h1.copyWith(
+            color: AppColors.darkForeground,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           '¡Felicidades por completar el desafío!',
-          style: TextStyle(
-            fontSize: 16,
-            color: Color(0xFFE9D5FF), // purple-200
-          ),
+          style: AppTextStyles.p.copyWith(color: AppColors.purple300),
         ),
       ],
     );
   }
+}
 
-  Widget _buildCurrentUserCard(UserWithScore currentUserWithScore, int rank) {
+// ─── Current user card ────────────────────────────────────────────────────────
+
+class _CurrentUserCard extends StatelessWidget {
+  final UserWithScore user;
+  final int rank;
+  const _CurrentUserCard({required this.user, required this.rank});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [
-            Color(0x807F1D1D), // red-900/50
-            Color(0x807E22CE), // purple-900/50
+            AppColors.red700.withOpacity(0.5),
+            AppColors.purple900.withOpacity(0.5),
           ],
         ),
-        border: Border.all(color: const Color(0xFFEF4444), width: 2),
+        border: Border.all(color: AppColors.red500, width: 2),
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.all(16),
@@ -216,28 +252,26 @@ class LeaderboardScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              ImageWithFallback(
-                imageUrl: currentUserWithScore.avatar,
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                borderWidth: 2,
-                borderColor: const Color(0xFFF87171), // red-400
+              AppAvatar(
+                imageUrl: user.avatar,
+                size: 48,
               ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Tu Resultado',
-                    style: TextStyle(
-                      color: Color(0xFFFCA5A5), // red-300
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.label.copyWith(
+                      color: AppColors.red400,
                     ),
                   ),
                   Text(
                     'Posición #$rank',
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: AppTextStyles.p.copyWith(
+                      color: AppColors.darkForeground,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
@@ -247,18 +281,17 @@ class LeaderboardScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                currentUserWithScore.score.toString(),
-                style: const TextStyle(
-                  fontSize: 24,
+                user.score.toString(),
+                style: AppTextStyles.h2.copyWith(
+                  color: AppColors.red400,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFFCA5A5), // red-300
                 ),
               ),
-              const Text(
+              Text(
                 'puntos',
-                style: TextStyle(
+                style: AppTextStyles.p.copyWith(
                   fontSize: 14,
-                  color: Color(0xFFFECDD3), // red-200
+                  color: AppColors.red400.withOpacity(0.7),
                 ),
               ),
             ],
@@ -267,21 +300,29 @@ class LeaderboardScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildPodium() {
+// ─── Podium ───────────────────────────────────────────────────────────────────
+
+class _Podium extends StatelessWidget {
+  final List<UserWithScore> top3;
+  const _Podium({required this.top3});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.emoji_events, color: Color(0xFFE9D5FF), size: 24),
-            SizedBox(width: 8),
+          children: [
+            const Icon(Icons.emoji_events,
+                color: AppColors.purple300, size: 24),
+            const SizedBox(width: 8),
             Text(
               'Podio de Campeones',
-              style: TextStyle(
-                fontSize: 20,
+              style: AppTextStyles.h3.copyWith(
+                color: AppColors.purple300,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFFE9D5FF), // purple-200
               ),
             ),
           ],
@@ -291,136 +332,88 @@ class LeaderboardScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // 2nd Place
-            PodiumPosition(
-              rank: 2,
-              userWithScore: mockPlayers[1],
-              height: 80,
-              player: null,
-            ),
+            if (top3.length > 1)
+              PodiumPosition(rank: 2, userWithScore: top3[1], height: 80),
             const SizedBox(width: 16),
-            // 1st Place
-            PodiumPosition(
-              rank: 1,
-              userWithScore: mockPlayers[0],
-              height: 112,
-              player: null,
-            ),
+            PodiumPosition(rank: 1, userWithScore: top3[0], height: 112),
             const SizedBox(width: 16),
-            // 3rd Place
-            PodiumPosition(
-              rank: 3,
-              userWithScore: mockPlayers[2],
-              height: 64,
-              player: null,
-            ),
+            if (top3.length > 2)
+              PodiumPosition(rank: 3, userWithScore: top3[2], height: 64),
           ],
         ),
       ],
     );
   }
+}
 
-  Widget _buildRankingSection() {
+// ─── Ranking section ──────────────────────────────────────────────────────────
+
+class _RankingSection extends StatelessWidget {
+  final List<UserWithScore> rest;
+  const _RankingSection({required this.rest});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Clasificación Completa',
-          style: TextStyle(
-            fontSize: 20,
+          style: AppTextStyles.h3.copyWith(
+            color: AppColors.purple300,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFE9D5FF), // purple-200
           ),
         ),
         const SizedBox(height: 16),
-        RankingList(players: mockPlayers.sublist(3), startRank: 4),
+        RankingList(players: rest, startRank: 4),
       ],
     );
   }
+}
 
-  Widget _buildActionButtons() {
+// ─── Action buttons ───────────────────────────────────────────────────────────
+
+class _ActionButtons extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
+        AppButton.primary(
+          label: 'Jugar de Nuevo',
+          icon: Icons.refresh,
           height: 56,
-          child: ElevatedButton(
-            onPressed: () {
-              // Handle restart
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9333EA), // purple-600
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(
-                  color: Color(0xFFA855F7), // purple-500
-                  width: 2,
-                ),
-              ),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.refresh, size: 20),
-                SizedBox(width: 12),
-                Text(
-                  'Jugar de Nuevo',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
+          onPressed: () =>
+              context.read<LeaderboardBloc>().add(LoadLeaderboard()),
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
+        AppButton.outline(
+          label: 'Volver al Inicio',
+          icon: Icons.home,
           height: 56,
-          child: OutlinedButton(
-            onPressed: () {
-              // Handle go home
-            },
-            style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0x801F2937), // gray-800/50
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(
-                  color: Color(0xFF4B5563), // gray-600
-                  width: 2,
-                ),
-              ),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.home, size: 20),
-                SizedBox(width: 12),
-                Text(
-                  'Volver al Inicio',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ],
     );
   }
+}
 
-  Widget _buildFooter() {
+// ─── Footer ───────────────────────────────────────────────────────────────────
+
+class _Footer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(top: 24),
       decoration: const BoxDecoration(
         border: Border(
-          top: BorderSide(color: Color(0xFF374151), width: 1), // gray-700
+          top: BorderSide(color: AppColors.purpleCardBorder, width: 1),
         ),
       ),
-      child: const Text(
+      child: Text(
         'Memory Trip • Desafío completado',
-        style: TextStyle(
+        style: AppTextStyles.p.copyWith(
           fontSize: 14,
-          color: Color(0xFF9CA3AF), // gray-400
+          color: AppColors.darkMutedForeground,
         ),
       ),
     );

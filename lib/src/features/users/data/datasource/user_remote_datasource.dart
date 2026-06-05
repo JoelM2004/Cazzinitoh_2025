@@ -12,6 +12,7 @@ abstract class UserRemoteDatasource {
   Future<bool> register(String email, String password);
   Future<bool> logout();
   Future<bool> update(String name, String nameTag, DateTime fecha,String? profilePictureUrl,);
+  Future<List<UserWithScore>> getLeaderboard();
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDatasource {
@@ -202,5 +203,36 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
     } catch (e) {
       throw Exception('Logout failed: $e');
     }
+  }
+
+  @override
+  Future<List<UserWithScore>> getLeaderboard() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .orderBy('score', descending: true)
+        .get();
+ 
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+ 
+    return snapshot.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+ 
+      final rawFecha = data['fechaNacimiento'];
+      if (rawFecha is Timestamp) {
+        data['fechaNacimiento'] = rawFecha.toDate().toIso8601String();
+      }
+ 
+      data['id'] = doc.id;
+ 
+      final user = UserModel.fromJson(data);
+      final score = (data['score'] as num?)?.toInt() ?? 0;
+      final isCurrentUser = doc.id == currentUserId;
+ 
+      return UserWithScore(
+        user: user,
+        score: score,
+        isCurrentUser: isCurrentUser,
+      );
+    }).toList();
   }
 }

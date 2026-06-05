@@ -8,6 +8,8 @@
     <!-- Android 12 e inferiores -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="cazzinitoh_2025"
         android:name="${applicationName}"

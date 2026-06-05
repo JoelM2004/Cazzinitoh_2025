@@ -3,6 +3,7 @@ import 'package:cazzinitoh_2025/src/features/users/data/datasource/user_local_da
 import 'package:cazzinitoh_2025/src/features/users/data/datasource/user_remote_datasource.dart';
 import 'package:cazzinitoh_2025/src/features/users/domain/entities/stats.dart';
 import 'package:cazzinitoh_2025/src/features/users/domain/entities/user.dart';
+import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/domain/repositories/user_repository.dart';
 import 'package:dartz/dartz.dart';
 
@@ -90,6 +91,17 @@ class UserRepositoryImpl implements UserRepository {
         profilePictureUrl
       );
       return Right(resp);
+    } on ServerFailure {
+      return Left(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<UserWithScore>>> getLeaderboard() async {
+    try {
+      final List<UserWithScore> players =
+          await userRemoteDatasource.getLeaderboard();
+      return Right(players);
     } on ServerFailure {
       return Left(ServerFailure());
     }

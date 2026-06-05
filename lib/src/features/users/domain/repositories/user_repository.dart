@@ -1,5 +1,6 @@
 import 'package:cazzinitoh_2025/src/core/error/failures.dart';
 import 'package:cazzinitoh_2025/src/features/users/domain/entities/user.dart';
+import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/domain/entities/stats.dart';
 import 'package:dartz/dartz.dart';
 
@@ -11,4 +12,5 @@ abstract class UserRepository {
   Future<Either<Failure, bool>> register(String email, String password);
   Future<Either<Failure, bool>> logout();
   Future<Either<Failure, bool>> update(String name, String nameTag, DateTime age, String? profilePictureUrl);
+  Future<Either<Failure, List<UserWithScore>>> getLeaderboard();
 }

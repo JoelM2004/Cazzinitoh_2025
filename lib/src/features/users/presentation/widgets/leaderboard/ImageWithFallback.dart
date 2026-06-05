@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 
 class ImageWithFallback extends StatelessWidget {
@@ -36,39 +37,37 @@ class ImageWithFallback extends StatelessWidget {
           width: width,
           height: height,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
+          errorBuilder: (_, __, ___) => Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              color: AppColors.purpleCardBorder,
+              borderRadius: BorderRadius.circular(borderRadius),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: AppColors.purple300,
+              size: 32,
+            ),
+          ),
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
             return Container(
               width: width,
               height: height,
               decoration: BoxDecoration(
-                color: const Color(0xFF374151), // gray-700
-                borderRadius: BorderRadius.circular(borderRadius),
-              ),
-              child: const Icon(
-                Icons.person,
-                color: Color(0xFF9CA3AF), // gray-400
-                size: 32,
-              ),
-            );
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              width: width,
-              height: height,
-              decoration: BoxDecoration(
-                color: const Color(0xFF374151), // gray-700
+                color: AppColors.purpleCardBorder,
                 borderRadius: BorderRadius.circular(borderRadius),
               ),
               child: Center(
                 child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
+                  value: progress.expectedTotalBytes != null
+                      ? progress.cumulativeBytesLoaded /
+                          progress.expectedTotalBytes!
                       : null,
                   strokeWidth: 2,
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF9333EA), // purple-600
+                    AppColors.purplePrimary,
                   ),
                 ),
               ),
