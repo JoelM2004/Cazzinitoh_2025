@@ -6,6 +6,7 @@ import 'package:cazzinitoh_2025/src/core/error/failures.dart';
 import 'package:cazzinitoh_2025/src/core/session/session.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/data/models/stats_model.dart';
+import 'package:cazzinitoh_2025/src/features/users/data/models/score_leaderboard_model.dart';
 
 abstract class UserRemoteDatasource {
   Future<UserModel> getUser(String userId);
@@ -19,7 +20,7 @@ abstract class UserRemoteDatasource {
     DateTime fecha,
     String? profilePictureUrl,
   );
-  Future<List<UserWithScore>> getLeaderboard();
+  Future<List<ScoreLeaderboardModel>> getLeaderboard();
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDatasource {
@@ -70,6 +71,12 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
   @override
   Future<bool> register(String email, String password) async {
     try {
+
+      try {
+        await _account.deleteSession(sessionId: 'current');
+      } catch (_) {} // ignorar si no había sesión
+
+
       final authUser = await _account.create(
         userId: ID.unique(),
         email: email,
@@ -94,7 +101,10 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
         },
       );
 
+
+
       print('Usuario registrado con ID: ${authUser.$id}');
+
       return true;
     } on AppwriteException catch (e) {
       throw ServerFailure(message: e.message ?? 'Registro fallido');
@@ -190,31 +200,51 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
 
   // ─── LEADERBOARD ─────────────────────────────────────────────────────────
 
-  @override
-  Future<List<UserWithScore>> getLeaderboard() async {
-    try {
-      final result = await _databases.listDocuments(
-        databaseId: AppwriteConfig.databaseId,
-        collectionId: AppwriteConfig.usersCollectionId,
-        queries: [Query.orderDesc('score'), Query.limit(100)],
-      );
+ @override
+Future<List<ScoreLeaderboardModel>> getLeaderboard() async {
+  try {
+    final result = await _databases.listDocuments(
+      databaseId: AppwriteConfig.databaseId,
+      collectionId: AppwriteConfig.leaderboardCollectionId,
+      queries: [
+        Query.orderDesc('score'),
+        Query.limit(10),
+        Query.select(['*', 'users.*']),
+      ],
+    );
 
-      final currentAccount = await _account.get().catchError((_) => null);
-      final currentUserId = currentAccount?.$id;
+    final currentAccount = await _account.get().catchError((_) => null);
+    final currentUserId = currentAccount?.$id;
 
-      return result.documents.map((doc) {
-        final user = _docToUserModel(doc);
-        final score = (doc.data['score'] as num?)?.toInt() ?? 0;
-        return UserWithScore(
-          user: user,
-          score: score,
-          isCurrentUser: doc.$id == currentUserId,
-        );
-      }).toList();
-    } on AppwriteException catch (e) {
-      throw ServerFailure(message: e.message ?? 'Error al obtener leaderboard');
-    }
+    return result.documents
+        .where((doc) {
+          final users = doc.data['users'];
+          if (users == null || (users as List).isEmpty) {
+            print('[Leaderboard] Documento sin user: ${doc.$id}');
+            return false;
+          }
+          return true;
+        })
+        .map((doc) {
+          final user = UserModel.fromJson(
+            Map<String, dynamic>.from(
+              (doc.data['users'] as List).first,
+            ),
+          );
+
+          return ScoreLeaderboardModel(
+            user: user,
+            score: (doc.data['score'] as num).toInt(),
+            isCurrentUser: user.id == currentUserId,
+          );
+        })
+        .toList();
+  } on AppwriteException catch (e) {
+    throw ServerFailure(
+      message: e.message ?? 'Error al obtener leaderboard',
+    );
   }
+}
 
   @override
   Future<StatsModel> getStats(String userId) async {

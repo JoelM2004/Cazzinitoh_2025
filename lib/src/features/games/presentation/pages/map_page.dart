@@ -10,9 +10,9 @@ import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/game/dif
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
-import 'package:maplibre_gl/maplibre_gl.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -22,9 +22,13 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  // ── MapLibre controller ──────────────────────────────────────────────────
-  MaplibreMapController? _maplibreController;
+  // ── Google Maps controller ───────────────────────────────────────────────
+  GoogleMapController? _mapController;
   bool _mapReady = false;
+
+  // ── Markers y polylines ──────────────────────────────────────────────────
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
 
   // ── Secuencia de puntos ──────────────────────────────────────────────────
   List<int> _randomSecuenciaIds = [];
@@ -33,13 +37,6 @@ class _MapPageState extends State<MapPage> {
 
   // ── Ruta OSRM ────────────────────────────────────────────────────────────
   bool _loadingRoute = false;
-  String? _routeLineId; // ID de la línea dibujada en el mapa
-
-  // ── Estilo del mapa ──────────────────────────────────────────────────────
-  // Cuando haya internet usa el estilo online; si querés offline, cambiá por:
-  // 'asset://assets/map_style.json'
-  static const String _mapStyle =
-      'https://demotiles.maplibre.org/style.json';
 
   // ── Zoom inicial ─────────────────────────────────────────────────────────
   double _currentZoom = 14.0;
@@ -63,91 +60,100 @@ class _MapPageState extends State<MapPage> {
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // MapLibre callbacks
+  // Google Maps callbacks
   // ────────────────────────────────────────────────────────────────────────
 
-  void _onMapCreated(MaplibreMapController controller) {
-    _maplibreController = controller;
-  }
-
-  void _onStyleLoaded() {
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
     setState(() => _mapReady = true);
-    _redrawMarkersAndPolylines();
+    _rebuildMarkersAndPolylines();
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // Redibujar markers y polylines cuando el mapa esté listo
+  // Markers y polylines
   // ────────────────────────────────────────────────────────────────────────
 
-  Future<void> _redrawMarkersAndPolylines() async {
-    if (!_mapReady || _maplibreController == null) return;
-
+  void _rebuildMarkersAndPolylines() {
     final state = context.read<GameBloc>().state;
+    final newMarkers = <Marker>{};
+    final newPolylines = <Polyline>{};
 
-    // Símbolo de ubicación actual
-    await _maplibreController!.addCircle(
-      CircleOptions(
-        geometry: LatLng(
+    newMarkers.add(
+      Marker(
+        markerId: const MarkerId('current_location'),
+        position: LatLng(
           state.currentLocation.latitude,
           state.currentLocation.longitude,
         ),
-        circleRadius: 10,
-        circleColor: '#9C27B0',
-        circleStrokeColor: '#FFFFFF',
-        circleStrokeWidth: 2,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+        infoWindow: const InfoWindow(title: 'Tu ubicación'),
       ),
     );
 
-    // Círculos para cada punto de juego
     for (final point in state.points) {
-      final color = point.isCompleted
-          ? '#4CAF50'
+      final hue = point.isCompleted
+          ? BitmapDescriptor.hueGreen
           : point.isActive
-              ? '#9C27B0'
-              : '#616161';
+              ? BitmapDescriptor.hueViolet
+              : BitmapDescriptor.hueAzure;
 
-      await _maplibreController!.addCircle(
-        CircleOptions(
-          geometry: LatLng(point.coords.latitude, point.coords.longitude),
-          circleRadius: 12,
-          circleColor: color,
-          circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 2,
+      newMarkers.add(
+        Marker(
+          markerId: MarkerId('point_${point.id}'),
+          position: LatLng(point.coords.latitude, point.coords.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+          infoWindow: InfoWindow(title: point.name),
+          onTap: () {
+            if (point.isActive || point.isCompleted) {
+              _showPointDialog(
+                context,
+                point.id,
+                point.name,
+                point.description,
+                point.imageUrls,
+                point.coords,
+              );
+            }
+          },
         ),
       );
     }
 
-    // Líneas simples entre puntos (las reemplaza OSRM cuando hay ruta)
-    _drawSimplePolylines(state);
-  }
+    if (state.points.isNotEmpty) {
+      final allCoords = <LatLng>[
+        LatLng(
+          state.currentLocation.latitude,
+          state.currentLocation.longitude,
+        ),
+        ...state.points
+            .map((p) => LatLng(p.coords.latitude, p.coords.longitude)),
+      ];
 
-  Future<void> _drawSimplePolylines(GameState state) async {
-    if (!_mapReady || _maplibreController == null) return;
-    final points = state.points;
-    if (points.isEmpty) return;
+      newPolylines.add(
+        Polyline(
+          polylineId: const PolylineId('simple_route'),
+          points: allCoords,
+          color: Colors.purple.withOpacity(0.4),
+          width: 3,
+        ),
+      );
+    }
 
-    final allCoords = <LatLng>[
-      LatLng(state.currentLocation.latitude, state.currentLocation.longitude),
-      ...points.map((p) => LatLng(p.coords.latitude, p.coords.longitude)),
-    ];
-
-    await _maplibreController!.addLine(
-      LineOptions(
-        geometry: allCoords,
-        lineColor: '#7B1FA2',
-        lineWidth: 2.0,
-        lineOpacity: 0.4,
-      ),
-    );
+    setState(() {
+      _markers
+        ..clear()
+        ..addAll(newMarkers);
+      _polylines
+        ..clear()
+        ..addAll(newPolylines);
+    });
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // OSRM: obtener ruta real por calles
+  // OSRM
   // ────────────────────────────────────────────────────────────────────────
 
   Future<void> _getOSRMRoute(ll.LatLng origin, ll.LatLng destination) async {
-    if (!_mapReady || _maplibreController == null) return;
-
     setState(() => _loadingRoute = true);
 
     final url = Uri.parse(
@@ -158,15 +164,15 @@ class _MapPageState extends State<MapPage> {
     );
 
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response =
+          await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final routes = data['routes'] as List?;
 
         if (routes != null && routes.isNotEmpty) {
-          final coords =
-              routes[0]['geometry']['coordinates'] as List;
+          final coords = routes[0]['geometry']['coordinates'] as List;
 
           final routePoints = coords
               .map((c) => LatLng(
@@ -175,29 +181,22 @@ class _MapPageState extends State<MapPage> {
                   ))
               .toList();
 
-          // Borramos ruta anterior si existe
-          if (_routeLineId != null) {
-            await _maplibreController!.removeLine(
-              Line(_routeLineId!, const LineOptions()),
+          setState(() {
+            _polylines.removeWhere(
+                (p) => p.polylineId == const PolylineId('osrm_route'));
+            _polylines.add(
+              Polyline(
+                polylineId: const PolylineId('osrm_route'),
+                points: routePoints,
+                color: Colors.purple.shade200,
+                width: 5,
+              ),
             );
-          }
+          });
 
-          // Dibujamos la nueva ruta
-          final line = await _maplibreController!.addLine(
-            LineOptions(
-              geometry: routePoints,
-              lineColor: '#CE93D8', // lila claro, visible sobre el mapa oscuro
-              lineWidth: 5.0,
-              lineOpacity: 0.9,
-            ),
-          );
-
-          _routeLineId = line.id;
-
-          // Ajustamos cámara para ver toda la ruta
           final bounds = _boundsFromPoints(routePoints);
-          await _maplibreController!.animateCamera(
-            CameraUpdate.newLatLngBounds(bounds, left: 48, right: 48, top: 80, bottom: 80),
+          _mapController?.animateCamera(
+            CameraUpdate.newLatLngBounds(bounds, 80),
           );
         }
       } else {
@@ -253,89 +252,126 @@ class _MapPageState extends State<MapPage> {
   ) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: Colors.grey.shade900,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          name,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width - 48,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
           ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (imageUrls.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    imageUrls.first,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 200,
-                      color: Colors.grey.shade800,
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        size: 100,
-                        color: Colors.grey,
-                      ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade900,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Título
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
                     ),
                   ),
                 ),
-              const SizedBox(height: 16),
-              Text(
-                description,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '¿Activar este punto?',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
+
+                // Contenido scrollable
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (imageUrls.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              imageUrls.first,
+                              height: 180,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 180,
+                                color: Colors.grey.shade800,
+                                child: const Icon(
+                                  Icons.image_not_supported,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        Text(
+                          description,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          '¿Ir a este punto?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+
+                // Botones
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: Text(
+                          'Cancelar',
+                          style: TextStyle(color: Colors.purple.shade300),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          // FIX: PointActivated → PointSelected
+                          context.read<GameBloc>().add(PointSelected(id));
+                          Navigator.pop(dialogContext);
+                          final state = context.read<GameBloc>().state;
+                          _getOSRMRoute(state.currentLocation, pointCoords);
+                          _rebuildMarkersAndPolylines();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple.shade600,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Ir'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Cancelar',
-              style: TextStyle(color: Colors.purple.shade300),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              context.read<GameBloc>().add(PointActivated(id));
-              Navigator.pop(dialogContext);
-
-              // ── Calcular ruta OSRM al punto activado ──
-              final state = context.read<GameBloc>().state;
-              _getOSRMRoute(state.currentLocation, pointCoords);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple.shade600,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Activar'),
-          ),
-        ],
       ),
     );
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // Secuencia de puntos (igual que antes)
+  // Secuencia de puntos
   // ────────────────────────────────────────────────────────────────────────
 
   List<int> _pickRandomSequenceIds(List<Point> points, int k) {
@@ -377,7 +413,7 @@ class _MapPageState extends State<MapPage> {
 
       try {
         final point = allPoints.firstWhere((p) => p.id == id);
-        _maplibreController?.animateCamera(
+        _mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(
             LatLng(point.coords.latitude, point.coords.longitude),
             _currentZoom,
@@ -427,12 +463,12 @@ class _MapPageState extends State<MapPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:
-            Text('Distancia al punto seleccionado: ${meters.round()} m'),
+        content: Text('Distancia al punto seleccionado: ${meters.round()} m'),
       ),
     );
 
-    // También trazamos la ruta al punto elegido
+    // FIX: también disparar PointSelected al elegir desde la lista
+    context.read<GameBloc>().add(PointSelected(chosenId));
     _getOSRMRoute(state.currentLocation, chosenPoint.coords);
   }
 
@@ -481,7 +517,6 @@ class _MapPageState extends State<MapPage> {
         ),
         child: Column(
           children: [
-            // ── Header ───────────────────────────────────────────────────
             GameHeader(
               onMenuClick: () => ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -498,15 +533,12 @@ class _MapPageState extends State<MapPage> {
               ),
             ),
 
-            // ── Mapa ─────────────────────────────────────────────────────
             Expanded(
               child: BlocBuilder<GameBloc, GameState>(
                 builder: (context, state) {
                   return Stack(
                     children: [
-                      // ── MapLibre ────────────────────────────────────────
-                      MaplibreMap(
-                        styleString: _mapStyle,
+                      GoogleMap(
                         initialCameraPosition: CameraPosition(
                           target: LatLng(
                             state.currentLocation.latitude,
@@ -514,27 +546,20 @@ class _MapPageState extends State<MapPage> {
                           ),
                           zoom: state.zoom,
                         ),
-                        minMaxZoomPreference:
-                            const MinMaxZoomPreference(12.0, 18.0),
                         onMapCreated: _onMapCreated,
-                        onStyleLoadedCallback: _onStyleLoaded,
-                        trackCameraPosition: true,
-                        onCameraIdle: () {
-                          if (_maplibreController != null) {
-                            _currentZoom =
-                                _maplibreController!.cameraPosition?.zoom ??
-                                    _currentZoom;
-                          }
+                        markers: _markers,
+                        polylines: _polylines,
+                        myLocationEnabled: true,
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: false,
+                        mapToolbarEnabled: false,
+                        onCameraMove: (pos) {
+                          _currentZoom = pos.zoom;
                         },
-                        // Marcadores de puntos como GestureDetector overlay
-                        // se manejan en el Stack de abajo
                       ),
 
-                      // ── Markers overlay (Flutter widgets sobre el mapa) ─
-                      if (_mapReady)
-                        ..._buildMarkerOverlays(context, state),
+                      if (_mapReady) ..._buildMarkerOverlays(context, state),
 
-                      // ── Loading ruta ────────────────────────────────────
                       if (_loadingRoute)
                         Positioned(
                           top: 16,
@@ -571,7 +596,6 @@ class _MapPageState extends State<MapPage> {
                           ),
                         ),
 
-                      // ── Zoom buttons ────────────────────────────────────
                       Positioned(
                         top: 16,
                         right: 16,
@@ -583,7 +607,7 @@ class _MapPageState extends State<MapPage> {
                                 context
                                     .read<GameBloc>()
                                     .add(ZoomInRequested());
-                                _maplibreController?.animateCamera(
+                                _mapController?.animateCamera(
                                   CameraUpdate.zoomIn(),
                                 );
                               },
@@ -595,7 +619,7 @@ class _MapPageState extends State<MapPage> {
                                 context
                                     .read<GameBloc>()
                                     .add(ZoomOutRequested());
-                                _maplibreController?.animateCamera(
+                                _mapController?.animateCamera(
                                   CameraUpdate.zoomOut(),
                                 );
                               },
@@ -604,7 +628,6 @@ class _MapPageState extends State<MapPage> {
                         ),
                       ),
 
-                      // ── Zoom indicator ──────────────────────────────────
                       Positioned(
                         bottom: 16,
                         left: 16,
@@ -619,7 +642,7 @@ class _MapPageState extends State<MapPage> {
                             ),
                           ),
                           child: Text(
-                            '${(state.zoom * 100 / 15).round()}%',
+                            '${(_currentZoom * 100 / 15).round()}%',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -629,7 +652,6 @@ class _MapPageState extends State<MapPage> {
                         ),
                       ),
 
-                      // ── Action buttons ──────────────────────────────────
                       Positioned(
                         bottom: 16,
                         right: 16,
@@ -639,7 +661,7 @@ class _MapPageState extends State<MapPage> {
                               icon: Icons.navigation,
                               color: Colors.purple,
                               onTap: () {
-                                _maplibreController?.animateCamera(
+                                _mapController?.animateCamera(
                                   CameraUpdate.newLatLngZoom(
                                     LatLng(
                                       state.currentLocation.latitude,
@@ -654,14 +676,14 @@ class _MapPageState extends State<MapPage> {
                             _buildActionButton(
                               icon: Icons.bolt,
                               color: Colors.deepPurple,
-                              onTap: () => setState(() {}),
+                              onTap: () => _rebuildMarkersAndPolylines(),
                             ),
                             const SizedBox(height: 12),
                             _buildActionButton(
                               icon: Icons.home,
                               color: Colors.blue,
                               onTap: () {
-                                _maplibreController?.animateCamera(
+                                _mapController?.animateCamera(
                                   CameraUpdate.newLatLngZoom(
                                     LatLng(
                                       state.currentLocation.latitude,
@@ -681,7 +703,6 @@ class _MapPageState extends State<MapPage> {
               ),
             ),
 
-            // ── Game stats ────────────────────────────────────────────────
             BlocBuilder<GameBloc, GameState>(
               builder: (context, state) {
                 return GameStats(
@@ -699,14 +720,10 @@ class _MapPageState extends State<MapPage> {
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // Markers como widgets Flutter encima del mapa
-  // Nota: para posicionarlos exactamente sobre las coords del mapa necesitás
-  // convertir LatLng → pixel. MapLibre provee toScreenLocation().
-  // Acá los mostramos como botones de acceso directo en lista lateral.
+  // Marker overlays
   // ────────────────────────────────────────────────────────────────────────
 
   List<Widget> _buildMarkerOverlays(BuildContext context, GameState state) {
-    // Si hay un punto resaltado (secuencia), mostramos solo ese punto en panel
     if (_pointResaltadoId != null) {
       final highlighted = _findPointById(state.points, _pointResaltadoId!);
       if (highlighted != null) {
@@ -721,11 +738,11 @@ class _MapPageState extends State<MapPage> {
       }
     }
 
-    // Lista de puntos tocables en la parte inferior izquierda
     return [
       Positioned(
         bottom: 80,
         left: 0,
+        right: 0,
         child: SizedBox(
           height: 90,
           child: ListView.separated(
@@ -749,8 +766,7 @@ class _MapPageState extends State<MapPage> {
                       point.coords,
                     );
                   }
-                  // Mover cámara al punto
-                  _maplibreController?.animateCamera(
+                  _mapController?.animateCamera(
                     CameraUpdate.newLatLngZoom(
                       LatLng(point.coords.latitude, point.coords.longitude),
                       16.0,
@@ -819,7 +835,7 @@ class _MapPageState extends State<MapPage> {
 
   @override
   void dispose() {
-    _maplibreController?.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 }
@@ -828,7 +844,6 @@ class _MapPageState extends State<MapPage> {
 // Widgets auxiliares
 // ──────────────────────────────────────────────────────────────────────────
 
-/// Chip que representa un punto de juego en la barra inferior
 class _PointChip extends StatelessWidget {
   final int order;
   final Point point;
@@ -921,7 +936,6 @@ class _PointChip extends StatelessWidget {
   }
 }
 
-/// Banner que aparece durante la secuencia para resaltar el punto actual
 class _HighlightedPointBanner extends StatelessWidget {
   final Point point;
 
@@ -947,12 +961,15 @@ class _HighlightedPointBanner extends StatelessWidget {
         children: [
           const Icon(Icons.location_on, color: Colors.black87, size: 20),
           const SizedBox(width: 8),
-          Text(
-            point.name,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+          Flexible(
+            child: Text(
+              point.name,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

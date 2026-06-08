@@ -9,6 +9,8 @@ class AppwriteConfig {
   // Estos los completás después de crear la DB y colección
   static const String databaseId = '6a2230800001d5bd9209';
   static const String usersCollectionId = 'users';
+  static const String leaderboardCollectionId = 'leaderboard';
+  static const String statsCollectionId="stats";
   static const String avatarsBucketId = '6a22316200007cbfcc1b';
 
   static Client get client => Client()

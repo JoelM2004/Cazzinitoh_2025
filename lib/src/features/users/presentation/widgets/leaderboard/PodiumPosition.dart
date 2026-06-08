@@ -1,17 +1,17 @@
 import 'package:cazzinitoh_2025/src/app/theme.dart';
-import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
+import 'package:cazzinitoh_2025/src/features/users/data/models/score_leaderboard_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/leaderboard/ImageWithFallback.dart';
 import 'package:flutter/material.dart';
 
 class PodiumPosition extends StatelessWidget {
   final int rank;
-  final UserWithScore userWithScore;
+  final ScoreLeaderboardModel player;
   final double height;
 
   const PodiumPosition({
     super.key,
     required this.rank,
-    required this.userWithScore,
+    required this.player,
     required this.height,
   });
 
@@ -62,7 +62,7 @@ class PodiumPosition extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Container(
-              decoration: userWithScore.isCurrentUser
+              decoration: player.isCurrentUser
                   ? BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.red500, width: 3),
@@ -75,7 +75,7 @@ class PodiumPosition extends StatelessWidget {
                     )
                   : null,
               child: ImageWithFallback(
-                imageUrl: userWithScore.avatar,
+                imageUrl: player.avatar,
                 width: 64,
                 height: 64,
                 borderRadius: 32,
@@ -99,7 +99,7 @@ class PodiumPosition extends StatelessWidget {
           child: Column(
             children: [
               Text(
-                userWithScore.displayName,
+                player.displayName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -111,7 +111,7 @@ class PodiumPosition extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                '${userWithScore.score} pts',
+                '${player.score} pts',
                 style: TextStyle(
                   color: AppColors.purple300,
                   fontSize: 12,

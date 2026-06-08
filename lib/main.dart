@@ -1,29 +1,13 @@
-import 'package:cazzinitoh_2025/di.dart';
+
 import 'package:cazzinitoh_2025/src/app/app.dart';
-import 'package:cazzinitoh_2025/src/features/games/presentation/blocs/game_bloc.dart';
-import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/load_user/load_user_bloc.dart';
-import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/login_user/login_user_bloc.dart';
-import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/register_user/register_user_bloc.dart';
-import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/update_user/update_user_bloc.dart';
-import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/leaderboard/leaderboard_bloc.dart';
+import 'package:cazzinitoh_2025/src/app/providers.dart';
+import 'package:cazzinitoh_2025/src/di/di.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get_it/get_it.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await init();
   runApp(
-    MultiBlocProvider(
-      providers: [
-        BlocProvider(create: (_) => GetIt.instance.get<LoadUserBloc>()),
-        BlocProvider(create: (_) => GetIt.instance.get<LoginUserBloc>()),
-        BlocProvider(create: (_) => GetIt.instance.get<RegisterUserBloc>()),
-        BlocProvider(create: (_) => GetIt.instance.get<UpdateUserBloc>()),
-        BlocProvider(create: (_) => GetIt.instance.get<LeaderboardBloc>()),
-        BlocProvider(create: (_) => GetIt.instance.get<GameBloc>()),
-      ],
-      child: const MyApp(),
-    ),
+    AppProviders(child: const MyApp()),
   );
 }

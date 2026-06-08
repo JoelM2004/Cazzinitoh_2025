@@ -1,5 +1,5 @@
 import 'package:cazzinitoh_2025/src/core/error/failures.dart';
-import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
+import 'package:cazzinitoh_2025/src/features/users/data/models/score_leaderboard_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/domain/use_cases/get_leaderboard_use_case.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

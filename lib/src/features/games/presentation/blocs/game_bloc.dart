@@ -1,188 +1,230 @@
 import 'dart:async';
-import 'package:cazzinitoh_2025/src/core/points/points.dart';
+
+import 'package:cazzinitoh_2025/src/core/location/location_service.dart';
+import 'package:cazzinitoh_2025/src/features/games/domain/use_cases/save_leaderboard_entry_usecase.dart';
+import 'package:cazzinitoh_2025/src/features/games/domain/use_cases/update_stats_usecase.dart';
 import 'package:cazzinitoh_2025/src/features/points/domain/entities/point.dart';
+import 'package:cazzinitoh_2025/src/features/users/domain/entities/stats.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';
 
-// ==================== EVENTS ====================
-abstract class GameEvent {}
+part 'game_event.dart';
+part 'game_state.dart';
 
-class GameStarted extends GameEvent {}
-
-class GameTick extends GameEvent {}
-
-class PointActivated extends GameEvent {
-  final int pointId;
-  PointActivated(this.pointId);
-}
-
-class ZoomChanged extends GameEvent {
-  final double zoom;
-  ZoomChanged(this.zoom);
-}
-
-class ZoomInRequested extends GameEvent {}
-
-class ZoomOutRequested extends GameEvent {}
-
-// ==================== STATE ====================
-class GameState {
-  final int score;
-  final int gameTime;
-  final double zoom;
-  final LatLng currentLocation;
-  final List<Point> points;
-
-  GameState({
-    required this.score,
-    required this.gameTime,
-    required this.zoom,
-    required this.currentLocation,
-    required this.points,
-  });
-
-  int get completedCount => points.where((p) => p.isCompleted).length;
-  int get totalCount => points.length;
-
-  String formatGameTime() {
-    final minutes = gameTime ~/ 60;
-    final seconds = gameTime % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  GameState copyWith({
-    int? score,
-    int? gameTime,
-    double? zoom,
-    LatLng? currentLocation,
-    List<Point>? points,
-  }) {
-    return GameState(
-      score: score ?? this.score,
-      gameTime: gameTime ?? this.gameTime,
-      zoom: zoom ?? this.zoom,
-      currentLocation: currentLocation ?? this.currentLocation,
-      points: points ?? this.points,
-    );
-  }
-}
-
-// ==================== BLOC ====================
 class GameBloc extends Bloc<GameEvent, GameState> {
-  Timer? _gameTimer;
+  final LocationService locationService;
+  final SaveScoreUseCase saveScore;
+  final SaveStatsUseCase saveStats;
 
-  GameBloc()
-    : super(
-        GameState(
-          score: 1250,
-          gameTime: 0,
-          zoom: 15.0,
-          currentLocation: const LatLng(-46.4406, -67.5256),
-          points: _initializePoints(),
-        ),
-      ) {
+  Timer? _gameTimer;
+  StreamSubscription<LatLng>? _locationSub;
+
+  GameBloc({
+    required this.locationService,
+    required this.saveScore,
+    required this.saveStats,
+  }) : super(const GameState()) {
     on<GameStarted>(_onGameStarted);
     on<GameTick>(_onGameTick);
-    on<PointActivated>(_onPointActivated);
-    on<ZoomChanged>(_onZoomChanged);
-    on<ZoomInRequested>(_onZoomInRequested);
-    on<ZoomOutRequested>(_onZoomOutRequested);
-
-    // Iniciar el juego automáticamente
-    add(GameStarted());
+    on<LocationUpdated>(_onLocationUpdated);
+    on<PointSelected>(_onPointSelected);
+    on<PointReached>(_onPointReached);
+    on<QuestionAnswered>(_onQuestionAnswered);
+    on<GameFinished>(_onGameFinished);
+    on<ZoomInRequested>(_onZoomIn);
+    on<ZoomOutRequested>(_onZoomOut);
   }
 
-  static List<Point> _initializePoints() {
-    final points = PointsSrc.points.map((point) {
-      return point.copyWith(
-        timeRemaining: 60,
-        totalTime: 60,
-        isActive: false,
-        isCompleted: false,
-      );
+  // ── Handlers ────────────────────────────────────────────────
+
+  Future<void> _onGameStarted(
+    GameStarted event,
+    Emitter<GameState> emit,
+  ) async {
+    final pts = event.points
+        .map((p) => p.copyWith(isActive: false, isCompleted: false))
+        .toList();
+
+    emit(state.copyWith(
+      phase: GamePhase.memorizing,
+      points: pts,
+      sequenceIds: event.sequenceIds,
+      userId: event.userId,
+      score: 0,
+      gameTimeSeconds: 0,
+      correctAnswers: 0,
+      totalAnswers: 0,
+      clearSelectedPoint: true,
+      clearError: true,
+    ));
+
+    _startLocationStream();
+  }
+
+  void _onGameTick(GameTick event, Emitter<GameState> emit) {
+    if (state.phase != GamePhase.navigating) return;
+
+    final pts = state.points.map((p) {
+      if (p.id != state.selectedPointId || p.isCompleted) return p;
+      final remaining = p.timeRemaining - 1;
+      if (remaining <= 0) {
+        return p.copyWith(isActive: false, timeRemaining: 0);
+      }
+      return p.copyWith(timeRemaining: remaining);
     }).toList();
 
-    // Activar el primer punto
-    if (points.isNotEmpty) {
-      points[0] = points[0].copyWith(isActive: true);
+    emit(state.copyWith(
+      gameTimeSeconds: state.gameTimeSeconds + 1,
+      points: pts,
+    ));
+
+    // Si el tiempo del punto activo se agotó, limpiamos la selección.
+    final wasActive = pts.firstWhere(
+      (p) => p.id == state.selectedPointId,
+      orElse: () => pts.first,
+    );
+    if (wasActive.timeRemaining <= 0 && !wasActive.isCompleted) {
+      emit(state.copyWith(points: pts, clearSelectedPoint: true));
     }
 
-    return points;
+    if (pts.every((p) => p.isCompleted)) add(GameFinished());
   }
 
-  void _onGameStarted(GameStarted event, Emitter<GameState> emit) {
+  void _onLocationUpdated(LocationUpdated event, Emitter<GameState> emit) {
+    emit(state.copyWith(currentLocation: event.position));
+  }
+
+  void _onPointSelected(PointSelected event, Emitter<GameState> emit) {
+    final pts = state.points.map((p) {
+      if (p.id == event.pointId && !p.isCompleted) {
+        return p.copyWith(isActive: true);
+      }
+      if (p.isActive && p.id != event.pointId) {
+        return p.copyWith(isActive: false);
+      }
+      return p;
+    }).toList();
+
+    emit(state.copyWith(
+      phase: GamePhase.navigating,
+      points: pts,
+      selectedPointId: event.pointId,
+      clearError: true,
+    ));
+
+    _ensureTimerRunning();
+  }
+
+  void _onPointReached(PointReached event, Emitter<GameState> emit) {
+    if (state.selectedPointId != event.pointId) return;
+
+    // Pausamos el timer mientras el usuario responde.
     _gameTimer?.cancel();
+
+    emit(state.copyWith(phase: GamePhase.answering));
+  }
+
+  void _onQuestionAnswered(QuestionAnswered event, Emitter<GameState> emit) {
+    final idx = state.points.indexWhere((p) => p.id == event.pointId);
+    if (idx == -1) return;
+
+    final pts = List<Point>.from(state.points);
+    final newTotalAnswers = state.totalAnswers + 1;
+    int newScore = state.score;
+    int newCorrect = state.correctAnswers;
+
+    if (event.isCorrect) {
+      const baseScore = 500;
+      final timeBonus = pts[idx].timeRemaining * 5;
+      newScore += baseScore + timeBonus;
+      newCorrect++;
+      pts[idx] = pts[idx].copyWith(isCompleted: true, isActive: false);
+    } else {
+      newScore = (newScore - 50).clamp(0, 999999);
+      // El punto sigue activo: el usuario puede reintentarlo.
+    }
+
+    final allDone = pts.every((p) => p.isCompleted);
+
+    emit(state.copyWith(
+      phase: GamePhase.navigating,
+      points: pts,
+      score: newScore,
+      correctAnswers: newCorrect,
+      totalAnswers: newTotalAnswers,
+      clearSelectedPoint: event.isCorrect,
+    ));
+
+    if (allDone) {
+      add(GameFinished());
+      return;
+    }
+
+    _ensureTimerRunning();
+  }
+
+  Future<void> _onGameFinished(
+    GameFinished event,
+    Emitter<GameState> emit,
+  ) async {
+    _gameTimer?.cancel();
+    _locationSub?.cancel();
+
+    emit(state.copyWith(phase: GamePhase.saving));
+
+    final scoreResult = await saveScore(state.score);
+
+    final statsResult = await saveStats(
+      Stats(
+        userId: state.userId,
+        mts: 0, // extensión futura: distancia recorrida real
+        time: state.gameTimeSeconds.toDouble(),
+        matchs: 1,
+        accuracy: state.accuracy * 100, // el repo espera 0–100
+      ),
+    );
+
+    final hasError = scoreResult.isLeft() || statsResult.isLeft();
+
+    emit(state.copyWith(
+      phase: hasError ? GamePhase.error : GamePhase.finished,
+      errorMessage: hasError ? 'Error al guardar los resultados' : null,
+    ));
+  }
+
+  void _onZoomIn(ZoomInRequested event, Emitter<GameState> emit) {
+    emit(state.copyWith(zoom: (state.zoom + 1.0).clamp(12.0, 18.0)));
+  }
+
+  void _onZoomOut(ZoomOutRequested event, Emitter<GameState> emit) {
+    emit(state.copyWith(zoom: (state.zoom - 1.0).clamp(12.0, 18.0)));
+  }
+
+  // ── Helpers privados ─────────────────────────────────────────
+
+  void _ensureTimerRunning() {
+    if (_gameTimer?.isActive == true) return;
     _gameTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       add(GameTick());
     });
   }
 
-  void _onGameTick(GameTick event, Emitter<GameState> emit) {
-    final updatedPoints = <Point>[];
-
-    for (var point in state.points) {
-      if (point.isActive && !point.isCompleted && point.timeRemaining > 0) {
-        final newTimeRemaining = point.timeRemaining - 1;
-        updatedPoints.add(
-          point.copyWith(
-            timeRemaining: newTimeRemaining,
-            isActive: newTimeRemaining > 0,
-          ),
-        );
-      } else {
-        updatedPoints.add(point);
-      }
+  void _startLocationStream() {
+    try {
+      _locationSub?.cancel();
+      _locationSub = locationService.positionStream.listen(
+        (pos) => add(LocationUpdated(pos)),
+        onError: (_) {},
+      );
+    } catch (_) {
+      // Geolocator no disponible en emulador; continuamos sin GPS.
     }
-
-    emit(state.copyWith(gameTime: state.gameTime + 1, points: updatedPoints));
-  }
-
-  void _onPointActivated(PointActivated event, Emitter<GameState> emit) {
-    final index = state.points.indexWhere((p) => p.id == event.pointId);
-    if (index == -1) return;
-
-    final point = state.points[index];
-    if (point.isCompleted) return;
-
-    final updatedPoints = List<Point>.from(state.points);
-    int newScore = state.score;
-
-    // Marcar como completado y ganar puntos si estaba activo
-    if (point.isActive) {
-      newScore += 500;
-    }
-
-    updatedPoints[index] = point.copyWith(isCompleted: true, isActive: false);
-
-    // Activar siguiente punto
-    if (index + 1 < updatedPoints.length) {
-      final nextPoint = updatedPoints[index + 1];
-      if (!nextPoint.isCompleted) {
-        updatedPoints[index + 1] = nextPoint.copyWith(isActive: true);
-      }
-    }
-
-    emit(state.copyWith(score: newScore, points: updatedPoints));
-  }
-
-  void _onZoomChanged(ZoomChanged event, Emitter<GameState> emit) {
-    final newZoom = event.zoom.clamp(12.0, 18.0);
-    emit(state.copyWith(zoom: newZoom));
-  }
-
-  void _onZoomInRequested(ZoomInRequested event, Emitter<GameState> emit) {
-    final newZoom = (state.zoom + 1.0).clamp(12.0, 18.0);
-    emit(state.copyWith(zoom: newZoom));
-  }
-
-  void _onZoomOutRequested(ZoomOutRequested event, Emitter<GameState> emit) {
-    final newZoom = (state.zoom - 1.0).clamp(12.0, 18.0);
-    emit(state.copyWith(zoom: newZoom));
   }
 
   @override
   Future<void> close() {
     _gameTimer?.cancel();
+    _locationSub?.cancel();
     return super.close();
   }
 }

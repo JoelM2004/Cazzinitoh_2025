@@ -7,7 +7,7 @@ final class LeaderboardInitial extends LeaderboardState {}
 final class LeaderboardLoading extends LeaderboardState {}
 
 final class LeaderboardSuccess extends LeaderboardState {
-  final List<UserWithScore> players;
+  final List<ScoreLeaderboardModel> players;
   LeaderboardSuccess({required this.players});
 }
 

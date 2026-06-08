@@ -1,4 +1,4 @@
-import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
+import 'package:cazzinitoh_2025/src/features/users/data/models/score_leaderboard_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/leaderboard/leaderboard_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/leaderboard/ImageWithFallback.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/leaderboard/PodiumPosition.dart';
@@ -50,7 +50,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   context,
                   type: AlertType.error,
                   title: 'Error al cargar',
-                  message: state.failure.toString(),
+                  message: state.failure.message,
                 );
               }
             },
@@ -136,7 +136,7 @@ class _EmptyRetryView extends StatelessWidget {
 // ─── Content ──────────────────────────────────────────────────────────────────
 
 class _LeaderboardContent extends StatelessWidget {
-  final List<UserWithScore> players;
+  final List<ScoreLeaderboardModel> players;
   final String trophyImage;
 
   const _LeaderboardContent({
@@ -147,7 +147,7 @@ class _LeaderboardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top3 = players.take(3).toList();
-    final rest = players.length > 3 ? players.sublist(3) : <UserWithScore>[];
+    final rest = players.length > 3 ? players.sublist(3) : <ScoreLeaderboardModel>[];
 
     final currentUserIndex = players.indexWhere((p) => p.isCurrentUser);
     final currentUser =
@@ -229,7 +229,7 @@ class _Header extends StatelessWidget {
 // ─── Current user card ────────────────────────────────────────────────────────
 
 class _CurrentUserCard extends StatelessWidget {
-  final UserWithScore user;
+  final ScoreLeaderboardModel user;
   final int rank;
   const _CurrentUserCard({required this.user, required this.rank});
 
@@ -305,7 +305,7 @@ class _CurrentUserCard extends StatelessWidget {
 // ─── Podium ───────────────────────────────────────────────────────────────────
 
 class _Podium extends StatelessWidget {
-  final List<UserWithScore> top3;
+  final List<ScoreLeaderboardModel> top3;
   const _Podium({required this.top3});
 
   @override
@@ -333,12 +333,12 @@ class _Podium extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (top3.length > 1)
-              PodiumPosition(rank: 2, userWithScore: top3[1], height: 80),
+              PodiumPosition(rank: 2, player: top3[1], height: 80),
             const SizedBox(width: 16),
-            PodiumPosition(rank: 1, userWithScore: top3[0], height: 112),
+            PodiumPosition(rank: 1, player: top3[0], height: 112),
             const SizedBox(width: 16),
             if (top3.length > 2)
-              PodiumPosition(rank: 3, userWithScore: top3[2], height: 64),
+              PodiumPosition(rank: 3, player: top3[2], height: 64),
           ],
         ),
       ],
@@ -349,7 +349,7 @@ class _Podium extends StatelessWidget {
 // ─── Ranking section ──────────────────────────────────────────────────────────
 
 class _RankingSection extends StatelessWidget {
-  final List<UserWithScore> rest;
+  final List<ScoreLeaderboardModel> rest;
   const _RankingSection({required this.rest});
 
   @override

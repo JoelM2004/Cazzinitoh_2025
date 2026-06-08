@@ -1,9 +1,9 @@
-import 'package:cazzinitoh_2025/src/features/users/data/models/user_model.dart';
+import 'package:cazzinitoh_2025/src/features/users/data/models/score_leaderboard_model.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/leaderboard/ImageWithFallback.dart';
 import 'package:flutter/material.dart';
 
 class RankingList extends StatelessWidget {
-  final List<UserWithScore> players;
+  final List<ScoreLeaderboardModel> players;
   final int startRank;
 
   const RankingList({
@@ -16,11 +16,11 @@ class RankingList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: List.generate(players.length, (index) {
-        final userWithScore = players[index];
+        final player = players[index];
         final rank = startRank + index;
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: _RankingItem(userWithScore: userWithScore, rank: rank),
+          child: _RankingItem(player: player, rank: rank),
         );
       }),
     );
@@ -28,31 +28,31 @@ class RankingList extends StatelessWidget {
 }
 
 class _RankingItem extends StatelessWidget {
-  final UserWithScore userWithScore;
+  final ScoreLeaderboardModel player;
   final int rank;
 
-  const _RankingItem({required this.userWithScore, required this.rank});
+  const _RankingItem({required this.player, required this.rank});
 
   @override
   Widget build(BuildContext context) {
-    final isCurrentUser = userWithScore.isCurrentUser;
+    final isCurrentUser = player.isCurrentUser;
 
     return Container(
       decoration: BoxDecoration(
         color: isCurrentUser
-            ? const Color(0x4D7F1D1D) // red-900/30
-            : const Color(0x801F2937), // gray-800/50
+            ? const Color(0x4D7F1D1D)
+            : const Color(0x801F2937),
         border: Border.all(
           color: isCurrentUser
-              ? const Color(0xFFEF4444) // red-500
-              : const Color(0xFF374151), // gray-700
+              ? const Color(0xFFEF4444)
+              : const Color(0xFF374151),
           width: 2,
         ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: isCurrentUser
             ? [
                 BoxShadow(
-                  color: const Color(0xFFF87171).withOpacity(0.5), // red-400/50
+                  color: const Color(0xFFF87171).withOpacity(0.5),
                   blurRadius: 8,
                   spreadRadius: 0,
                 ),
@@ -72,8 +72,8 @@ class _RankingItem extends StatelessWidget {
                   height: 32,
                   decoration: BoxDecoration(
                     color: isCurrentUser
-                        ? const Color(0xFFDC2626) // red-600
-                        : const Color(0xFF9333EA), // purple-600
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF9333EA),
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
@@ -90,12 +90,12 @@ class _RankingItem extends StatelessWidget {
 
                 // Avatar
                 ImageWithFallback(
-                  imageUrl: userWithScore.avatar,
+                  imageUrl: player.avatar,
                   width: 48,
                   height: 48,
                   borderRadius: 24,
                   borderWidth: 2,
-                  borderColor: const Color(0xFF4B5563), // gray-600
+                  borderColor: const Color(0xFF4B5563),
                 ),
                 const SizedBox(width: 16),
 
@@ -105,10 +105,10 @@ class _RankingItem extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          userWithScore.displayName,
+                          player.displayName,
                           style: TextStyle(
                             color: isCurrentUser
-                                ? const Color(0xFFFCA5A5) // red-300
+                                ? const Color(0xFFFCA5A5)
                                 : Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
@@ -124,7 +124,7 @@ class _RankingItem extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDC2626), // red-600
+                            color: const Color(0xFFDC2626),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Text(
@@ -155,13 +155,13 @@ class _RankingItem extends StatelessWidget {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
-                    userWithScore.score.toString(),
+                    player.score.toString(),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: isCurrentUser
-                          ? const Color(0xFFFCA5A5) // red-300
-                          : const Color(0xFFC4B5FD), // purple-300
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFFC4B5FD),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -170,8 +170,8 @@ class _RankingItem extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       color: isCurrentUser
-                          ? const Color(0xFFFCA5A5) // red-300
-                          : const Color(0xFFC4B5FD), // purple-300
+                          ? const Color(0xFFFCA5A5)
+                          : const Color(0xFFC4B5FD),
                     ),
                   ),
                 ],

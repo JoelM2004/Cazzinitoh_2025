@@ -41,7 +41,7 @@ dependencies:
   hive : ^2.2.3
   hive_flutter: ^1.1.0  
   material_symbols_icons: ^4.2873.0
-  google_maps_flutter: ^2.13.1
+  google_maps_flutter: ^2.9.0
   font_awesome_flutter: any
   provider: ^6.1.1
   flutter_svg: ^2.0.9
@@ -54,6 +54,8 @@ dependencies:
   maplibre_gl: ^0.21.0          # o la última disponible
   http: ^1.2.0
   appwrite: ^20.3.1
+  geolocator: ^13.0.2
+  
   
 dev_dependencies:
   flutter_test:
