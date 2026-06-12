@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 
 class CurrentLocationMarkerWidget extends StatefulWidget {
@@ -42,10 +43,8 @@ class _CurrentLocationMarkerWidgetState
               animation: _controller,
               builder: (context, child) {
                 final scale = 1.0 + (_controller.value * 0.35);
-                final opacity = (0.6 - (_controller.value * 0.5)).clamp(
-                  0.0,
-                  0.6,
-                );
+                final opacity =
+                    (0.6 - (_controller.value * 0.5)).clamp(0.0, 0.6);
                 return Transform.scale(
                   scale: scale,
                   child: Container(
@@ -97,12 +96,11 @@ class _CurrentLocationMarkerWidgetState
 
         const SizedBox(height: 12),
 
-        const SizedBox(height: 6),
         // Etiqueta
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.grey.shade900.withOpacity(0.9),
+            color: AppColors.darkBackground.withOpacity(0.9),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -112,9 +110,9 @@ class _CurrentLocationMarkerWidgetState
               ),
             ],
           ),
-          child: const Text(
+          child: Text(
             'Tu ubicación',
-            style: TextStyle(
+            style: AppTextStyles.p.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w500,
               fontSize: 12,

@@ -10,7 +10,7 @@ class LocationServiceImpl implements LocationService {
 
   static const _locationSettings = LocationSettings(
     accuracy: LocationAccuracy.high,
-    distanceFilter: 10, // metros mínimos para emitir nueva posición
+    distanceFilter: 2, // metros mínimos para emitir nueva posición
   );
 
   @override

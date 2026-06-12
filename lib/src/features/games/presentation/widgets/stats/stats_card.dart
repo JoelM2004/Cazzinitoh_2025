@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 
 enum StatsCardColor { purple, red, gray }
@@ -21,33 +22,42 @@ class StatsCard extends StatelessWidget {
   List<Color> _getGradientColors() {
     switch (color) {
       case StatsCardColor.purple:
-        return [const Color(0xCC581C87), const Color(0x996B21A8)];
+        return [
+          AppColors.purple900.withOpacity(0.8),
+          AppColors.purple600.withOpacity(0.6),
+        ];
       case StatsCardColor.red:
-        return [const Color(0xCC7F1D1D), const Color(0x99991B1B)];
+        return [
+          AppColors.red700.withOpacity(0.8),
+          AppColors.red700.withOpacity(0.6),
+        ];
       case StatsCardColor.gray:
-        return [const Color(0xCC1F2937), const Color(0x991F2937)];
+        return [
+          AppColors.darkCard.withOpacity(0.8),
+          AppColors.darkCard.withOpacity(0.6),
+        ];
     }
   }
 
   Color _getBorderColor() {
     switch (color) {
       case StatsCardColor.purple:
-        return const Color(0x807C3AED);
+        return AppColors.purpleBorder.withOpacity(0.5);
       case StatsCardColor.red:
-        return const Color(0x80B91C1C);
+        return AppColors.red700.withOpacity(0.5);
       case StatsCardColor.gray:
-        return const Color(0x80374151);
+        return AppColors.darkBorder.withOpacity(0.5);
     }
   }
 
   Color _getIconColor() {
     switch (color) {
       case StatsCardColor.purple:
-        return const Color(0xFFC084FC);
+        return AppColors.purple400;
       case StatsCardColor.red:
-        return const Color(0xFFF87171);
+        return AppColors.red400;
       case StatsCardColor.gray:
-        return const Color(0xFF9CA3AF);
+        return AppColors.darkMutedForeground;
     }
   }
 
@@ -76,7 +86,7 @@ class StatsCard extends StatelessWidget {
                 children: [
                   Text(
                     value,
-                    style: const TextStyle(
+                    style: AppTextStyles.h1.copyWith(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -85,9 +95,9 @@ class StatsCard extends StatelessWidget {
                   if (subtitle != null)
                     Text(
                       subtitle!,
-                      style: const TextStyle(
+                      style: AppTextStyles.p.copyWith(
                         fontSize: 12,
-                        color: Color(0xFFD1D5DB),
+                        color: AppColors.darkMutedForeground,
                       ),
                     ),
                 ],
@@ -97,7 +107,7 @@ class StatsCard extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(fontSize: 16, color: Color(0xFFE5E7EB)),
+            style: AppTextStyles.p.copyWith(color: AppColors.darkForeground),
           ),
         ],
       ),

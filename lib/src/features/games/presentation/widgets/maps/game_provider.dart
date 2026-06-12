@@ -1,120 +1,153 @@
-import 'dart:async';
-import 'package:cazzinitoh_2025/src/core/points/points.dart';
-import 'package:cazzinitoh_2025/src/features/points/domain/entities/point.dart';
-import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
+// import 'dart:async';
+// import 'package:cazzinitoh_2025/src/core/points/points.dart';
+// import 'package:cazzinitoh_2025/src/features/points/domain/entities/point.dart';
+// import 'package:flutter/material.dart';
+// import 'package:latlong2/latlong.dart';
 
-class GameProvider with ChangeNotifier {
-  int _score = 1250;
-  int _gameTime = 0;
-  double _zoom = 15.0;
-  Timer? _gameTimer;
+// enum GamePhase {
+//   waiting,      // cartelito inicial, antes de empezar
+//   memorizing,   // 60s viendo los puntos
+//   playing,      // jugando
+//   finished,     // terminó
+// }
 
-  // Coordenadas de Caleta Olivia, Santa Cruz, Argentina (centro de la ciudad)
-  final LatLng _currentLocation = const LatLng(-46.4406, -67.5256);
+// class GameProvider with ChangeNotifier {
+//   int _score = 0;
+//   int _gameTime = 0;
+//   int _memorizingSecondsLeft = 60;
+//   double _zoom = 15.0;
+//   Timer? _gameTimer;
+//   Timer? _memorizingTimer;
+//   GamePhase _phase = GamePhase.waiting;
 
-  // Cargar puntos desde PointsSrc
-  late List<Point> _points;
+//   final LatLng _currentLocation = const LatLng(-46.4406, -67.5256);
 
-  int get score => _score;
-  int get gameTime => _gameTime;
-  double get zoom => _zoom;
-  LatLng get currentLocation => _currentLocation;
-  List<Point> get points => _points;
+//   late List<Point> _points;
+//   int? _selectedPointId;
 
-  int get completedCount => _points.where((p) => p.isCompleted).length;
-  int get totalCount => _points.length;
+//   // ── Getters ──────────────────────────────────────────────────
 
-  GameProvider() {
-    _initializePoints();
-    _startGameTimer();
-  }
+//   int get score => _score;
+//   int get gameTime => _gameTime;
+//   int get memorizingSecondsLeft => _memorizingSecondsLeft;
+//   double get zoom => _zoom;
+//   LatLng get currentLocation => _currentLocation;
+//   List<Point> get points => _points;
+//   GamePhase get phase => _phase;
+//   int? get selectedPointId => _selectedPointId;
 
-  void _initializePoints() {
-    // Copiar los puntos de PointsSrc y añadir propiedades del juego
-    _points = PointsSrc.points.map((point) {
-      return point.copyWith(
-        timeRemaining: 60,
-        totalTime: 60,
-        isActive: false,
-        isCompleted: false,
-      );
-    }).toList();
+//   int get completedCount => _points.where((p) => p.isCompleted).length;
+//   int get totalCount => _points.length;
+//   bool get allCompleted => completedCount == totalCount;
 
-    // Activar el primer punto
-    if (_points.isNotEmpty) {
-      _points[0] = _points[0].copyWith(isActive: true);
-    }
-  }
+//   GameProvider() {
+//     _initializePoints();
+//   }
 
-  void _startGameTimer() {
-    _gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _gameTime++;
+//   void _initializePoints() {
+//     _points = PointsSrc.points.map((point) {
+//       return point.copyWith(
+//         timeRemaining: 60,
+//         totalTime: 60,
+//         isActive: false,
+//         isCompleted: false,
+//       );
+//     }).toList();
+//   }
 
-      for (int i = 0; i < _points.length; i++) {
-        if (_points[i].isActive &&
-            !_points[i].isCompleted &&
-            _points[i].timeRemaining > 0) {
-          _points[i] = _points[i].copyWith(
-            timeRemaining: _points[i].timeRemaining - 1,
-          );
+//   // ── Fase 1: usuario toca "Comenzar" ──────────────────────────
 
-          if (_points[i].timeRemaining <= 0) {
-            _points[i] = _points[i].copyWith(isActive: false);
-          }
-        }
-      }
+//   void startMemorizing() {
+//     _phase = GamePhase.memorizing;
+//     _memorizingSecondsLeft = 60;
+//     notifyListeners();
 
-      notifyListeners();
-    });
-  }
+//     _memorizingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+//       _memorizingSecondsLeft--;
+//       notifyListeners();
 
-  void activatePoint(int id) {
-    final index = _points.indexWhere((p) => p.id == id);
-    if (index == -1) return;
+//       if (_memorizingSecondsLeft <= 0) {
+//         timer.cancel();
+//         _startPlaying();
+//       }
+//     });
+//   }
 
-    final point = _points[index];
-    if (point.isCompleted) return;
+//   // ── Fase 2: arrancar el juego real ───────────────────────────
 
-    if (point.isActive) {
-      _score += 500;
-    }
+//   void _startPlaying() {
+//     _phase = GamePhase.playing;
+//     notifyListeners();
 
-    _points[index] = point.copyWith(isCompleted: true, isActive: false);
+//     _gameTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+//       _gameTime++;
+//       notifyListeners();
+//     });
+//   }
 
-    // Activar siguiente punto
-    if (index + 1 < _points.length) {
-      final nextPoint = _points[index + 1];
-      if (!nextPoint.isCompleted) {
-        _points[index + 1] = nextPoint.copyWith(isActive: true);
-      }
-    }
+//   // ── Seleccionar un punto (el jugador lo elige) ───────────────
 
-    notifyListeners();
-  }
+//   void selectPoint(int id) {
+//     if (_phase != GamePhase.playing) return;
+//     final point = _points.firstWhere((p) => p.id == id, orElse: () => _points.first);
+//     if (point.isCompleted) return;
 
-  void setZoom(double newZoom) {
-    _zoom = newZoom.clamp(12.0, 18.0);
-    notifyListeners();
-  }
+//     // Desactivar el anterior
+//     _points = _points.map((p) {
+//       if (p.isActive && p.id != id) return p.copyWith(isActive: false);
+//       if (p.id == id) return p.copyWith(isActive: true);
+//       return p;
+//     }).toList();
 
-  void zoomIn() {
-    setZoom(_zoom + 1.0);
-  }
+//     _selectedPointId = id;
+//     notifyListeners();
+//   }
 
-  void zoomOut() {
-    setZoom(_zoom - 1.0);
-  }
+//   // ── Marcar punto como completado (después del quiz) ──────────
 
-  String formatGameTime() {
-    final minutes = _gameTime ~/ 60;
-    final seconds = _gameTime % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
+//   void completePoint(int id, {bool correct = true}) {
+//     final index = _points.indexWhere((p) => p.id == id);
+//     if (index == -1) return;
 
-  @override
-  void dispose() {
-    _gameTimer?.cancel();
-    super.dispose();
-  }
-}
+//     if (correct) {
+//       _score += 500;
+//       _points[index] = _points[index].copyWith(isCompleted: true, isActive: false);
+//     } else {
+//       _score = (_score - 50).clamp(0, 999999);
+//     }
+
+//     _selectedPointId = null;
+
+//     if (allCompleted) {
+//       _gameTimer?.cancel();
+//       _phase = GamePhase.finished;
+//     }
+
+//     notifyListeners();
+//   }
+
+//   // ── Zoom ─────────────────────────────────────────────────────
+
+//   void zoomIn() {
+//     _zoom = (_zoom + 1.0).clamp(12.0, 18.0);
+//     notifyListeners();
+//   }
+
+//   void zoomOut() {
+//     _zoom = (_zoom - 1.0).clamp(12.0, 18.0);
+//     notifyListeners();
+//   }
+
+//   String formatGameTime() {
+//     final minutes = _gameTime ~/ 60;
+//     final seconds = _gameTime % 60;
+//     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+//   }
+
+//   @override
+//   void dispose() {
+//     _gameTimer?.cancel();
+//     _memorizingTimer?.cancel();
+//     super.dispose();
+//   }
+// }

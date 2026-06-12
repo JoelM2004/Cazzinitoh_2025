@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 
 class TimeData {
@@ -26,12 +27,7 @@ class TimeChart extends StatelessWidget {
     return SizedBox(
       height: 250,
       child: Padding(
-        padding: const EdgeInsets.only(
-          left: 40,
-          right: 20,
-          top: 20,
-          bottom: 10,
-        ),
+        padding: const EdgeInsets.only(left: 40, right: 20, top: 20, bottom: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
@@ -42,31 +38,14 @@ class TimeChart extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    '${maxTime}s',
-                    style: const TextStyle(
-                      color: Color(0xFFD1D5DB),
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    '${(maxTime * 0.66).round()}s',
-                    style: const TextStyle(
-                      color: Color(0xFFD1D5DB),
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    '${(maxTime * 0.33).round()}s',
-                    style: const TextStyle(
-                      color: Color(0xFFD1D5DB),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const Text(
-                    '0s',
-                    style: TextStyle(color: Color(0xFFD1D5DB), fontSize: 12),
-                  ),
+                  Text('${maxTime}s',
+                      style: const TextStyle(color: AppColors.darkMutedForeground, fontSize: 12)),
+                  Text('${(maxTime * 0.66).round()}s',
+                      style: const TextStyle(color: AppColors.darkMutedForeground, fontSize: 12)),
+                  Text('${(maxTime * 0.33).round()}s',
+                      style: const TextStyle(color: AppColors.darkMutedForeground, fontSize: 12)),
+                  const Text('0s',
+                      style: TextStyle(color: AppColors.darkMutedForeground, fontSize: 12)),
                 ],
               ),
             ),
@@ -91,12 +70,12 @@ class TimeChart extends StatelessWidget {
                                 alignment: Alignment.bottomCenter,
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
+                                    gradient: LinearGradient(
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
                                       colors: [
-                                        Color(0xCCA855F7),
-                                        Color(0x997C3AED),
+                                        AppColors.purple500.withOpacity(0.8),
+                                        AppColors.purple700.withOpacity(0.6),
                                       ],
                                     ),
                                     borderRadius: const BorderRadius.vertical(
@@ -121,7 +100,7 @@ class TimeChart extends StatelessWidget {
                           data.challenge,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: Color(0xFFD1D5DB),
+                            color: AppColors.darkMutedForeground,
                             fontSize: 10,
                           ),
                           maxLines: 1,

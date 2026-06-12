@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -11,7 +12,7 @@ class CircularProgress extends StatelessWidget {
     super.key,
     required this.percentage,
     required this.title,
-    this.color = const Color(0xFFA855F7),
+    this.color = AppColors.purplePrimary,
     this.size = 140,
   });
 
@@ -31,8 +32,7 @@ class CircularProgress extends StatelessWidget {
             child: Center(
               child: Text(
                 '$percentage%',
-                style: const TextStyle(
-                  fontSize: 28,
+                style: AppTextStyles.h1.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
@@ -46,7 +46,7 @@ class CircularProgress extends StatelessWidget {
           child: Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, color: Color(0xFFE5E7EB)),
+            style: AppTextStyles.p.copyWith(color: AppColors.darkForeground),
           ),
         ),
       ],
@@ -66,23 +66,21 @@ class CircularProgressPainter extends CustomPainter {
     final radius = size.width / 2.25;
     final strokeWidth = size.width * 0.15;
 
-    // Background circle
     final backgroundPaint = Paint()
-      ..color = const Color(0xFF374151)
+      ..color = AppColors.darkBorder
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
     canvas.drawCircle(center, radius, backgroundPaint);
 
-    // Progress arc
     final progressPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    const startAngle = -math.pi / 2; // Start from top
+    const startAngle = -math.pi / 2;
     final sweepAngle = 2 * math.pi * (percentage / 100);
 
     canvas.drawArc(

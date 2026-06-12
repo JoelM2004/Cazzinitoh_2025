@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/widgets/stats/circular_progress.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/widgets/stats/stats_card.dart';
@@ -16,9 +17,9 @@ class StatsPage extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0F172A), // slate-900
-              Color(0xFF581C87), // purple-900
-              Color(0xFF0F172A), // slate-900
+              AppColors.purpleBackground,
+              AppColors.purple900,
+              AppColors.purpleBackground,
             ],
           ),
         ),
@@ -35,38 +36,25 @@ class StatsPage extends StatelessWidget {
                     Row(
                       children: [
                         IconButton(
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Color(0xFFD8B4FE),
-                          ),
+                          icon: const Icon(Icons.arrow_back, color: AppColors.purple300),
                           onPressed: () {
-                            if (Navigator.canPop(context)) {
-                              Navigator.pop(context);
-                            }
+                            if (Navigator.canPop(context)) Navigator.pop(context);
                           },
                         ),
                         const SizedBox(width: 12),
-                        const Icon(
-                          Icons.mood_bad,
-                          color: Color(0xFFC084FC),
-                          size: 32,
-                        ),
+                        const Icon(Icons.mood_bad, color: AppColors.purple400, size: 32),
                         const SizedBox(width: 8),
                         const Text(
                           'Estadísticas',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppColors.darkForeground,
                           ),
                         ),
                       ],
                     ),
-                    const Icon(
-                      Icons.dark_mode,
-                      color: Color(0xFFC084FC),
-                      size: 24,
-                    ),
+                    const Icon(Icons.dark_mode, color: AppColors.purple400, size: 24),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -104,21 +92,21 @@ class StatsPage extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [Color(0xCC581C87), Color(0x996B21A8)],
+                            colors: [
+                              AppColors.purple900.withOpacity(0.8),
+                              AppColors.purple900.withOpacity(0.6),
+                            ],
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0x807C3AED),
-                            width: 2,
-                          ),
+                          border: Border.all(color: AppColors.purple700.withOpacity(0.5), width: 2),
                         ),
                         child: const CircularProgress(
                           percentage: 87,
                           title: 'Aciertos en Destinos',
-                          color: Color(0xFFA855F7),
+                          color: AppColors.purple500,
                         ),
                       ),
                     ),
@@ -127,21 +115,21 @@ class StatsPage extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [Color(0xCC7F1D1D), Color(0x99991B1B)],
+                            colors: [
+                              AppColors.red700.withOpacity(0.8),
+                              AppColors.red700.withOpacity(0.6),
+                            ],
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0x80B91C1C),
-                            width: 2,
-                          ),
+                          border: Border.all(color: AppColors.red700.withOpacity(0.5), width: 2),
                         ),
                         child: const CircularProgress(
                           percentage: 73,
                           title: 'Eficiencia Temporal',
-                          color: Color(0xFFEF4444),
+                          color: AppColors.red500,
                         ),
                       ),
                     ),
@@ -153,24 +141,20 @@ class StatsPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xE61F2937), Color(0xB31F2937)],
+                      colors: [
+                        AppColors.purpleCard.withOpacity(0.9),
+                        AppColors.purpleCard.withOpacity(0.7),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0x80374151),
-                      width: 2,
-                    ),
+                    border: Border.all(color: AppColors.purpleCardBorder.withOpacity(0.5), width: 2),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.access_time,
-                        color: Color(0xFF9CA3AF),
-                        size: 32,
-                      ),
+                      const Icon(Icons.access_time, color: AppColors.darkMutedForeground, size: 32),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
@@ -178,14 +162,11 @@ class StatsPage extends StatelessWidget {
                           children: const [
                             Text(
                               'Tiempo Promedio',
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.white,
-                              ),
+                              style: TextStyle(fontSize: 20, color: AppColors.darkForeground),
                             ),
                             Text(
                               'por desafío completado',
-                              style: TextStyle(color: Color(0xFFD1D5DB)),
+                              style: TextStyle(color: AppColors.darkMutedForeground),
                             ),
                           ],
                         ),
@@ -197,16 +178,13 @@ class StatsPage extends StatelessWidget {
                             '38.2s',
                             style: TextStyle(
                               fontSize: 28,
-                              color: Colors.white,
+                              color: AppColors.darkForeground,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'mejorando 12%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF9CA3AF),
-                            ),
+                            style: TextStyle(fontSize: 12, color: AppColors.darkMutedForeground),
                           ),
                         ],
                       ),
@@ -219,36 +197,32 @@ class StatsPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xCC581C87), Color(0x996B21A8)],
+                      colors: [
+                        AppColors.purple900.withOpacity(0.8),
+                        AppColors.purple900.withOpacity(0.6),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0x807C3AED),
-                      width: 2,
-                    ),
+                    border: Border.all(color: AppColors.purple700.withOpacity(0.5), width: 2),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: const [
                       Row(
-                        children: const [
-                          Icon(
-                            Icons.track_changes,
-                            color: Color(0xFFC084FC),
-                            size: 24,
-                          ),
+                        children: [
+                          Icon(Icons.track_changes, color: AppColors.purple400, size: 24),
                           SizedBox(width: 8),
                           Text(
                             'Rendimiento Temporal',
-                            style: TextStyle(fontSize: 20, color: Colors.white),
+                            style: TextStyle(fontSize: 20, color: AppColors.darkForeground),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      const TimeChart(),
+                      SizedBox(height: 16),
+                      TimeChart(),
                     ],
                   ),
                 ),
@@ -265,32 +239,25 @@ class StatsPage extends StatelessWidget {
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xCC78350F), Color(0x9992400E)],
+                      colors: [
+                        Color(0xCC78350F), // amber-900 — sin equivalente en AppColors
+                        Color(0x9992400E),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0x80B45309),
-                      width: 2,
-                    ),
+                    border: Border.all(color: const Color(0x80B45309), width: 2),
                   ),
                   child: Row(
-                    children: [
-                      const Icon(
-                        Icons.emoji_events,
-                        color: Color(0xFFFBBF24),
-                        size: 48,
-                      ),
-                      const SizedBox(width: 16),
+                    children: const [
+                      Icon(Icons.emoji_events, color: Color(0xFFFBBF24), size: 48),
+                      SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Último Logro',
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.white,
-                              ),
+                              style: TextStyle(fontSize: 20, color: AppColors.darkForeground),
                             ),
                             Text(
                               'Maestro de las Sombras',
@@ -299,10 +266,7 @@ class StatsPage extends StatelessWidget {
                             SizedBox(height: 4),
                             Text(
                               'Completar 50 desafíos consecutivos',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFFFCD34D),
-                              ),
+                              style: TextStyle(fontSize: 12, color: Color(0xFFFCD34D)),
                             ),
                           ],
                         ),
@@ -317,19 +281,16 @@ class StatsPage extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xCC7C3AED),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
+                      backgroundColor: AppColors.purple700.withOpacity(0.8),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
-                        side: const BorderSide(color: Color(0x807C3AED)),
+                        side: BorderSide(color: AppColors.purple700.withOpacity(0.5)),
                       ),
                     ),
                     child: const Text(
                       'Nuevo Desafío',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                      style: TextStyle(fontSize: 16, color: AppColors.darkForeground),
                     ),
                   ),
                 ),

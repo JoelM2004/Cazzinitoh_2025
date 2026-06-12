@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 
 class GameStats extends StatelessWidget {
@@ -21,13 +22,13 @@ class GameStats extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.grey.shade900.withOpacity(0.95),
-            Colors.purple.shade900.withOpacity(0.95),
+            AppColors.darkBackground.withOpacity(0.95),
+            AppColors.purple900.withOpacity(0.95),
           ],
         ),
         border: Border(
           top: BorderSide(
-            color: Colors.purple.shade500.withOpacity(0.2),
+            color: AppColors.purpleGlow.withOpacity(0.2),
             width: 1,
           ),
         ),
@@ -41,22 +42,19 @@ class GameStats extends StatelessWidget {
               icon: Icons.emoji_events,
               value: score.toString(),
               label: 'Puntos',
-              colors: [Colors.yellow.shade400, Colors.orange.shade500],
-              delay: 100,
+              gradientColors: [Colors.yellow.shade400, Colors.orange.shade500],
             ),
             _buildStatItem(
               icon: Icons.flag,
               value: '$completedPoints/$totalPoints',
               label: 'Objetivos',
-              colors: [Colors.purple.shade400, Colors.deepPurple.shade500],
-              delay: 200,
+              gradientColors: [AppColors.purplePrimary, AppColors.purple600],
             ),
             _buildStatItem(
               icon: Icons.timer,
               value: timeElapsed,
               label: 'Tiempo',
-              colors: [Colors.blue.shade400, Colors.blue.shade600],
-              delay: 300,
+              gradientColors: [Colors.blue.shade400, Colors.blue.shade600],
               isMono: true,
             ),
           ],
@@ -69,8 +67,7 @@ class GameStats extends StatelessWidget {
     required IconData icon,
     required String value,
     required String label,
-    required List<Color> colors,
-    required int delay,
+    required List<Color> gradientColors,
     bool isMono = false,
   }) {
     return TweenAnimationBuilder<double>(
@@ -93,7 +90,7 @@ class GameStats extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: colors,
+                colors: gradientColors,
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -107,16 +104,17 @@ class GameStats extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: TextStyle(
+                style: AppTextStyles.label.copyWith(
                   color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
                   fontFamily: isMono ? 'monospace' : null,
                 ),
               ),
               Text(
                 label,
-                style: TextStyle(color: Colors.purple.shade300, fontSize: 12),
+                style: AppTextStyles.p.copyWith(
+                  color: AppColors.purple300,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),

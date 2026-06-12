@@ -1,22 +1,12 @@
 part of 'game_bloc.dart';
 
 enum GamePhase {
-  /// Mostrando la secuencia al usuario (pantalla de memorización).
-  memorizing,
-
-  /// El usuario navega hacia el punto seleccionado.
-  navigating,
-
-  /// El usuario está respondiendo la pregunta del punto.
-  answering,
-
-  /// Guardando resultados en backend.
-  saving,
-
-  /// Juego terminado con éxito.
-  finished,
-
-  /// Error al guardar.
+  waiting,     // overlay "Comenzar"
+  memorizing,  // 60s viendo los puntos
+  navigating,  // navegando hacia un punto
+  answering,   // respondiendo quiz
+  saving,      // guardando en backend
+  finished,    // terminó OK
   error,
 }
 
@@ -29,13 +19,14 @@ class GameState {
   final double zoom;
   final int score;
   final int gameTimeSeconds;
+  final int memorizingSecondsLeft; // NUEVO
   final String userId;
   final int correctAnswers;
   final int totalAnswers;
   final String? errorMessage;
 
   const GameState({
-    this.phase = GamePhase.memorizing,
+    this.phase = GamePhase.waiting, // arranca en waiting
     this.points = const [],
     this.sequenceIds = const [],
     this.selectedPointId,
@@ -43,25 +34,17 @@ class GameState {
     this.zoom = 15.0,
     this.score = 0,
     this.gameTimeSeconds = 0,
+    this.memorizingSecondsLeft = 60, // NUEVO
     this.userId = '',
     this.correctAnswers = 0,
     this.totalAnswers = 0,
     this.errorMessage,
   });
 
-  // ── Derivados ──────────────────────────────────────────────
-
-  // FIX: p nunca es nullable — List<Point> no contiene nulos.
   int get completedCount => points.where((p) => p.isCompleted).length;
   int get totalCount => points.length;
-  bool get allCompleted =>
-      points.isNotEmpty && points.every((p) => p.isCompleted);
-
-  /// Precisión: 0.0 – 1.0
-  double get accuracy =>
-      totalAnswers == 0 ? 0.0 : correctAnswers / totalAnswers;
-
-  /// El punto al que el usuario está navegando actualmente.
+  bool get allCompleted => points.isNotEmpty && points.every((p) => p.isCompleted);
+  double get accuracy => totalAnswers == 0 ? 0.0 : correctAnswers / totalAnswers;
   Point? get selectedPoint => selectedPointId == null
       ? null
       : points.where((p) => p.id == selectedPointId).firstOrNull;
@@ -82,6 +65,7 @@ class GameState {
     double? zoom,
     int? score,
     int? gameTimeSeconds,
+    int? memorizingSecondsLeft,
     String? userId,
     int? correctAnswers,
     int? totalAnswers,
@@ -92,13 +76,12 @@ class GameState {
       phase: phase ?? this.phase,
       points: points ?? this.points,
       sequenceIds: sequenceIds ?? this.sequenceIds,
-      selectedPointId: clearSelectedPoint
-          ? null
-          : selectedPointId ?? this.selectedPointId,
+      selectedPointId: clearSelectedPoint ? null : selectedPointId ?? this.selectedPointId,
       currentLocation: currentLocation ?? this.currentLocation,
       zoom: zoom ?? this.zoom,
       score: score ?? this.score,
       gameTimeSeconds: gameTimeSeconds ?? this.gameTimeSeconds,
+      memorizingSecondsLeft: memorizingSecondsLeft ?? this.memorizingSecondsLeft,
       userId: userId ?? this.userId,
       correctAnswers: correctAnswers ?? this.correctAnswers,
       totalAnswers: totalAnswers ?? this.totalAnswers,

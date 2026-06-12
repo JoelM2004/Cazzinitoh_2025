@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 
 class GameHeader extends StatelessWidget {
@@ -15,15 +16,15 @@ class GameHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
-            Colors.purple.shade900.withOpacity(0.9),
-            Colors.deepPurple.shade900.withOpacity(0.9),
+            AppColors.purple900,
+            AppColors.purpleBackground,
           ],
         ),
         border: Border(
           bottom: BorderSide(
-            color: Colors.purple.shade500.withOpacity(0.2),
+            color: AppColors.purpleGlow.withOpacity(0.2),
             width: 1,
           ),
         ),
@@ -38,11 +39,11 @@ class GameHeader extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.purple.shade400,
-                        Colors.deepPurple.shade500,
+                        AppColors.purple400,
+                        AppColors.purple600,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -59,18 +60,14 @@ class GameHeader extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Memory Trip',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: AppTextStyles.h3.copyWith(color: Colors.white),
                     ),
                     Text(
                       'Explora y recuerda',
-                      style: TextStyle(
-                        color: Colors.purple.shade200,
+                      style: AppTextStyles.p.copyWith(
+                        color: AppColors.purple300,
                         fontSize: 14,
                       ),
                     ),
@@ -86,21 +83,21 @@ class GameHeader extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.purple.shade800.withOpacity(0.5),
+                    color: AppColors.purple900.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.access_time,
-                        color: Colors.purple.shade300,
+                        color: AppColors.purple300,
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         TimeOfDay.now().format(context),
-                        style: TextStyle(
-                          color: Colors.purple.shade200,
+                        style: AppTextStyles.p.copyWith(
+                          color: AppColors.purple300,
                           fontSize: 14,
                         ),
                       ),
@@ -132,7 +129,7 @@ class GameHeader extends StatelessWidget {
           width: 40,
           height: 40,
           alignment: Alignment.center,
-          child: Icon(icon, color: Colors.purple.shade200, size: 24),
+          child: Icon(icon, color: AppColors.purple300, size: 24),
         ),
       ),
     );

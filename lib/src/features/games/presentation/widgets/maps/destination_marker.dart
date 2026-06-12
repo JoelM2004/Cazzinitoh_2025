@@ -1,3 +1,4 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -49,14 +50,14 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
 
   Color _getMarkerColor() {
     if (widget.isCompleted) return Colors.green.shade400;
-    if (widget.isActive) return Colors.purple.shade400;
-    return Colors.grey.shade400;
+    if (widget.isActive) return AppColors.purplePrimary;
+    return AppColors.mutedForeground;
   }
 
   Color _getBorderColor() {
     if (widget.isCompleted) return Colors.green.shade300;
-    if (widget.isActive) return Colors.purple.shade300;
-    return Colors.grey.shade300;
+    if (widget.isActive) return AppColors.purpleBorder;
+    return AppColors.darkMutedForeground;
   }
 
   @override
@@ -67,7 +68,6 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
         ? ((widget.totalTime - widget.timeRemaining) / widget.totalTime)
         : 0.0;
 
-    // Para arreglar lo del overflow, porque no lo encontraba
     return LayoutBuilder(
       builder: (context, constraints) {
         final availWidth = constraints.maxWidth.isFinite
@@ -103,9 +103,7 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
                             height: circleSize,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.purple.shade500.withOpacity(
-                                opacity,
-                              ),
+                              color: AppColors.purpleGlow.withOpacity(opacity),
                             ),
                           ),
                         );
@@ -161,17 +159,16 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
                       child: CustomPaint(
                         painter: CircularProgressPainter(
                           progress: progressPercentage.clamp(0.0, 1.0),
-                          color: Colors.purple.shade400,
+                          color: AppColors.purplePrimary,
                         ),
                       ),
                     ),
                 ],
               ),
 
-              SizedBox(height: gap),
+              const SizedBox(height: gap),
 
               if (!isCompact)
-                // Información del punto
                 Container(
                   constraints: BoxConstraints(maxWidth: infoMaxWidth),
                   padding: const EdgeInsets.symmetric(
@@ -179,10 +176,10 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade900.withOpacity(0.95),
+                    color: AppColors.darkBackground.withOpacity(0.95),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: Colors.purple.shade500.withOpacity(0.28),
+                      color: AppColors.purpleBorder.withOpacity(0.28),
                       width: 1,
                     ),
                     boxShadow: [
@@ -198,7 +195,7 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
                     children: [
                       Text(
                         widget.title,
-                        style: const TextStyle(
+                        style: AppTextStyles.p.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
@@ -212,16 +209,16 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.timer,
-                              color: Colors.purple.shade300,
+                              color: AppColors.purple300,
                               size: 14,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               '$minutes:${seconds.toString().padLeft(2, '0')}',
-                              style: TextStyle(
-                                color: Colors.purple.shade300,
+                              style: AppTextStyles.p.copyWith(
+                                color: AppColors.purple300,
                                 fontSize: 12,
                                 fontFamily: 'monospace',
                               ),
@@ -234,7 +231,7 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
                             '¡Completado!',
-                            style: TextStyle(
+                            style: AppTextStyles.p.copyWith(
                               color: Colors.green.shade400,
                               fontSize: 12,
                             ),
@@ -245,8 +242,8 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
                             'Punto ${widget.order}',
-                            style: const TextStyle(
-                              color: Colors.grey,
+                            style: AppTextStyles.p.copyWith(
+                              color: AppColors.darkMutedForeground,
                               fontSize: 12,
                             ),
                           ),
@@ -268,7 +265,7 @@ class _DestinationMarkerWidgetState extends State<DestinationMarkerWidget>
         const Icon(Icons.location_on, color: Colors.white, size: 24),
         Text(
           '${widget.order}',
-          style: const TextStyle(
+          style: AppTextStyles.p.copyWith(
             color: Colors.white,
             fontSize: 12,
             fontWeight: FontWeight.bold,
@@ -290,14 +287,12 @@ class CircularProgressPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 2;
 
-    // Círculo de fondo
     final backgroundPaint = Paint()
       ..color = color.withOpacity(0.3)
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
     canvas.drawCircle(center, radius, backgroundPaint);
 
-    // Círculo de progreso
     final progressPaint = Paint()
       ..color = color
       ..strokeWidth = 3
