@@ -1,93 +1,64 @@
-import 'package:cazzinitoh_2025/src/features/users/presentation/pages/menu_page.dart';
+import 'package:cazzinitoh_2025/src/app/theme.dart';
+import 'package:cazzinitoh_2025/src/core/quiz/quiz_data.dart';
 import 'package:flutter/material.dart';
 
+/// QuizPage — muestra UNA sola pregunta aleatoria por visita al punto.
+/// Devuelve true si la respuesta fue correcta, false si no.
 class QuizPage extends StatefulWidget {
-  const QuizPage({Key? key}) : super(key: key);
+  const QuizPage({super.key});
 
   @override
   State<QuizPage> createState() => _QuizPageState();
 }
 
-class _QuizPageState extends State<QuizPage> {
-  final TextEditingController _answerController = TextEditingController();
-  bool? _isCorrect;
+class _QuizPageState extends State<QuizPage> with SingleTickerProviderStateMixin {
+  late final QuizQuestion _question;
+  int? _selectedOption;
+  bool _answered = false;
 
-  final Map<String, dynamic> riddle = {
-    'question': 'VIVO DEL BAMBÚ Y TENGO UNA PELÍCULA',
-    'correctAnswer': 'sombra',
-    'hint': 'Pista: Me proyectas sin querer...',
-  };
+  late AnimationController _feedbackController;
+  late Animation<double> _feedbackScale;
 
   @override
   void initState() {
     super.initState();
-    // Agregar listener para actualizar el estado cuando cambie el texto
-    _answerController.addListener(() {
-      setState(() {});
-    });
-  }
+    // ── UNA sola pregunta aleatoria ────────────────────────────
+    _question = QuizData.getRandom(1).first;
 
-  void _handleSubmit() {
-    final userAnswer = _answerController.text.toLowerCase().trim();
-    final correct = userAnswer == riddle['correctAnswer'];
-
-    setState(() {
-      _isCorrect = correct;
-    });
-
-    if (correct) {
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() {
-          _answerController.clear();
-          _isCorrect = null;
-        });
-        // Aquí podrías cargar el siguiente acertijo
-      });
-    }
-  }
-
-  void _showHint() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1F2937),
-          title: const Text('💡 Pista', style: TextStyle(color: Colors.white)),
-          content: Text(
-            riddle['hint'],
-            style: const TextStyle(color: Color(0xFFD8B4FE)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        );
-      },
+    _feedbackController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
-  }
-
-  void _goBack() {
-    // Verifica si hay una pantalla anterior
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    } else {
-      // Si no hay pantalla anterior, navegar a la pantalla de inicio
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MenuPage()),
-      );
-    }
+    _feedbackScale = CurvedAnimation(
+      parent: _feedbackController,
+      curve: Curves.elasticOut,
+    );
   }
 
   @override
   void dispose() {
-    _answerController.dispose();
+    _feedbackController.dispose();
     super.dispose();
+  }
+
+  void _selectOption(int index) {
+    if (_answered) return;
+    setState(() {
+      _selectedOption = index;
+      _answered = true;
+    });
+    _feedbackController.forward(from: 0);
+  }
+
+  void _finish() {
+    final isCorrect = _selectedOption == _question.correctIndex;
+    Navigator.pop(context, isCorrect);
   }
 
   @override
   Widget build(BuildContext context) {
+    final q = _question;
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -95,345 +66,246 @@ class _QuizPageState extends State<QuizPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF581C87), // purple-900
-              Color(0xFF6B21A8), // purple-800
-              Color(0xFF4C1D95), // indigo-900
+              AppColors.purpleBackground,
+              AppColors.purple900,
+              Color(0xFF0d0d1a),
             ],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      // Botón de volver atrás
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: _goBack,
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          tooltip: 'Volver',
+              // ── Header ─────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      icon: const Icon(Icons.close, color: Colors.white54),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Pregunta del punto',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      // Header
-                      _buildHeader(),
-                      const SizedBox(height: 32),
-                      // Riddle Card
-                      _buildRiddleCard(),
-                      const SizedBox(height: 24),
-                      // Answer Input
-                      _buildAnswerInput(),
-                      const SizedBox(height: 24),
-                      // Submit Button
-                      _buildSubmitButton(),
-                      const SizedBox(height: 24),
-                      // Feedback
-                      if (_isCorrect != null) _buildFeedback(),
-                      const SizedBox(height: 16),
-                      // Hint Button
-                      if (_isCorrect != true) _buildHintButton(),
+                    ),
+                    // Espacio simétrico al botón de cerrar
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+
+              // ── Cuerpo scrollable ────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Card de la pregunta
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          color: AppColors.purpleCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.purpleCardBorder),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: const BoxDecoration(
+                                color: AppColors.purple700,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.quiz_outlined,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              q.question,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w600,
+                                height: 1.45,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // Opciones
+                      ...List.generate(q.options.length, (i) {
+                        final isCorrect  = i == q.correctIndex;
+                        final isSelected = i == _selectedOption;
+
+                        Color borderColor = AppColors.purpleCardBorder;
+                        Color bgColor     = AppColors.purpleCard;
+                        Widget? trailing;
+
+                        if (_answered) {
+                          if (isCorrect) {
+                            borderColor = Colors.green;
+                            bgColor     = Colors.green.withOpacity(0.15);
+                            trailing    = const Icon(Icons.check_circle,
+                                color: Colors.green, size: 20);
+                          } else if (isSelected) {
+                            borderColor = Colors.red;
+                            bgColor     = Colors.red.withOpacity(0.15);
+                            trailing    = const Icon(Icons.cancel,
+                                color: Colors.red, size: 20);
+                          }
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: GestureDetector(
+                            onTap: () => _selectOption(i),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: bgColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: borderColor, width: 1.5),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Letra A / B / C / D
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _answered && isCorrect
+                                          ? Colors.green
+                                          : _answered && isSelected
+                                              ? Colors.red
+                                              : AppColors.purple700.withOpacity(0.5),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        String.fromCharCode(65 + i),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      q.options[i],
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 15),
+                                    ),
+                                  ),
+                                  if (trailing != null) trailing,
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+
+                      const SizedBox(height: 8),
+
+                      // Feedback animado
+                      if (_answered)
+                        ScaleTransition(
+                          scale: _feedbackScale,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: _selectedOption == q.correctIndex
+                                  ? Colors.green.withOpacity(0.15)
+                                  : Colors.red.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedOption == q.correctIndex
+                                    ? Colors.green.withOpacity(0.5)
+                                    : Colors.red.withOpacity(0.5),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _selectedOption == q.correctIndex
+                                      ? Icons.check_circle_outline
+                                      : Icons.cancel_outlined,
+                                  color: _selectedOption == q.correctIndex
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _selectedOption == q.correctIndex
+                                        ? '¡Correcto! Excelente.'
+                                        : 'Incorrecto. Era: ${q.options[q.correctIndex]}',
+                                    style: TextStyle(
+                                      color: _selectedOption == q.correctIndex
+                                          ? Colors.green.shade200
+                                          : Colors.red.shade200,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
-              // Progress Indicator
-              _buildProgressIndicator(),
+
+              // ── Botón continuar (aparece tras responder) ─────────
+              if (_answered)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _finish,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.purple700,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text(
+                        'Continuar →',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFC084FC), width: 4),
-          ),
-          child: ClipOval(
-            child: Image.network(
-              'https://radiomasterlujan.com.ar/wp-content/uploads/2022/11/20221120_141751.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: const Color(0xFF6B21A8),
-                  child: const Icon(
-                    Icons.person,
-                    size: 40,
-                    color: Colors.white,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Memory Trip',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Desafía tu mente',
-          style: TextStyle(color: Color(0xFFD8B4FE), fontSize: 16),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRiddleCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFA855F7).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              color: Color(0xFF9333EA),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.lightbulb_outline,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Acertijo #1',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            riddle['question'],
-            style: const TextStyle(
-              color: Color(0xFFD1D5DB),
-              fontSize: 18,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnswerInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Tu respuesta:',
-          style: TextStyle(color: Colors.white, fontSize: 18),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _answerController,
-          style: const TextStyle(color: Colors.white, fontSize: 18),
-          decoration: InputDecoration(
-            hintText: 'Escribe tu respuesta aquí...',
-            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 18),
-            filled: true,
-            fillColor: const Color(0xFF1F2937),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFA855F7), width: 1),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: const Color(0xFFA855F7).withOpacity(0.5),
-                width: 1,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFC084FC), width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-          ),
-          onSubmitted: (_) {
-            if (_answerController.text.trim().isNotEmpty) {
-              _handleSubmit();
-            }
-          },
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Presiona Enter o el botón para confirmar tu respuesta',
-          style: TextStyle(color: Color(0xFFD8B4FE), fontSize: 14),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    final isEnabled = _answerController.text.trim().isNotEmpty;
-
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isEnabled ? _handleSubmit : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isEnabled
-              ? const Color(0xFF9333EA)
-              : const Color(0xFF4B5563),
-          disabledBackgroundColor: const Color(0xFF4B5563),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          elevation: 0,
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Confirmar Respuesta',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeedback() {
-    final isCorrect = _isCorrect == true;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isCorrect
-            ? const Color(0xFF14532D).withOpacity(0.8)
-            : const Color(0xFF7F1D1D).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isCorrect
-              ? const Color(0xFF22C55E).withOpacity(0.5)
-              : const Color(0xFFEF4444).withOpacity(0.5),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isCorrect ? Icons.check_circle_outline : Icons.cancel_outlined,
-            color: isCorrect
-                ? const Color(0xFF86EFAC)
-                : const Color(0xFFFCA5A5),
-            size: 24,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            isCorrect
-                ? '¡Correcto! Excelente deducción.'
-                : 'Incorrecto. ¡Inténtalo de nuevo!',
-            style: TextStyle(
-              color: isCorrect
-                  ? const Color(0xFF86EFAC)
-                  : const Color(0xFFFCA5A5),
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHintButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: OutlinedButton(
-        onPressed: _showHint,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(
-            color: const Color(0xFFA855F7).withOpacity(0.5),
-            width: 1,
-          ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          foregroundColor: const Color(0xFFD8B4FE),
-        ),
-        child: const Text('💡 Obtener Pista', style: TextStyle(fontSize: 16)),
-      ),
-    );
-  }
-
-  Widget _buildProgressIndicator() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            'Progreso:',
-            style: TextStyle(color: Color(0xFFD8B4FE), fontSize: 14),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 128,
-            height: 8,
-            decoration: BoxDecoration(
-              color: const Color(0xFF374151),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: 0.25,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFA855F7), Color(0xFFEF4444)],
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            '1/4',
-            style: TextStyle(color: Color(0xFFD8B4FE), fontSize: 14),
-          ),
-        ],
       ),
     );
   }

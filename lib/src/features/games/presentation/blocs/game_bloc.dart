@@ -12,8 +12,7 @@ import 'package:latlong2/latlong.dart';
 part 'game_event.dart';
 part 'game_state.dart';
 
-// Radio en metros para considerar que el usuario llegó al punto
-const double _arrivalRadiusMeters = 5.0;
+const double _arrivalRadiusMeters = 200.0;
 
 double _distanceMeters(LatLng a, LatLng b) {
   const earthRadius = 6371000.0;
@@ -38,6 +37,12 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   Timer? _memorizingTimer;
   StreamSubscription<LatLng>? _locationSub;
 
+  bool _pointReachHandled = false;
+
+  // ─── Acumulador de distancia ────────────────────────────────
+  double _totalMeters = 0.0;
+  LatLng? _lastPosition;
+
   GameBloc({
     required this.locationService,
     required this.saveScore,
@@ -56,13 +61,24 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     on<ZoomOutRequested>(_onZoomOut);
   }
 
-  Future<void> _onGameStarted(GameStarted event, Emitter<GameState> emit) async {
+  // ─── GameStarted ────────────────────────────────────────────
+
+  Future<void> _onGameStarted(
+    GameStarted event,
+    Emitter<GameState> emit,
+  ) async {
+    _gameTimer?.cancel();
+    _memorizingTimer?.cancel();
+    _pointReachHandled = false;
+    _totalMeters = 0.0;
+    _lastPosition = null;
+
     final pts = event.points.map((p) => p.copyWith(
-      isActive: false,
-      isCompleted: false,
-      timeRemaining: 60,
-      totalTime: 60,
-    )).toList();
+          isActive: false,
+          isCompleted: false,
+          timeRemaining: 60,
+          totalTime: 60,
+        )).toList();
 
     emit(state.copyWith(
       phase: GamePhase.waiting,
@@ -81,24 +97,38 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     _startLocationStream();
   }
 
-  void _onMemorizingStarted(MemorizingStarted event, Emitter<GameState> emit) {
+  // ─── MemorizingStarted ──────────────────────────────────────
+
+  void _onMemorizingStarted(
+    MemorizingStarted event,
+    Emitter<GameState> emit,
+  ) {
     emit(state.copyWith(phase: GamePhase.memorizing, memorizingSecondsLeft: 60));
     _memorizingTimer?.cancel();
-    _memorizingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      add(MemorizingTick());
-    });
+    _memorizingTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => add(MemorizingTick()),
+    );
   }
 
-  void _onMemorizingTick(MemorizingTick event, Emitter<GameState> emit) {
+  // ─── MemorizingTick ─────────────────────────────────────────
+
+  void _onMemorizingTick(
+    MemorizingTick event,
+    Emitter<GameState> emit,
+  ) {
     final newSeconds = state.memorizingSecondsLeft - 1;
     if (newSeconds <= 0) {
       _memorizingTimer?.cancel();
+      _pointReachHandled = false;
       emit(state.copyWith(phase: GamePhase.navigating, memorizingSecondsLeft: 0));
       _ensureTimerRunning();
     } else {
       emit(state.copyWith(memorizingSecondsLeft: newSeconds));
     }
   }
+
+  // ─── GameTick ───────────────────────────────────────────────
 
   void _onGameTick(GameTick event, Emitter<GameState> emit) {
     if (state.phase != GamePhase.navigating) return;
@@ -125,13 +155,23 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     if (pts.every((p) => p.isCompleted)) add(GameFinished());
   }
 
-  // ── Detección de proximidad ──────────────────────────────────
-  void _onLocationUpdated(LocationUpdated event, Emitter<GameState> emit) {
+  // ─── LocationUpdated ────────────────────────────────────────
+
+  void _onLocationUpdated(
+    LocationUpdated event,
+    Emitter<GameState> emit,
+  ) {
+    // Acumular distancia solo durante navegación
+    if (state.phase == GamePhase.navigating && _lastPosition != null) {
+      _totalMeters += _distanceMeters(_lastPosition!, event.position);
+    }
+    _lastPosition = event.position;
+
     emit(state.copyWith(currentLocation: event.position));
 
-    // Solo chequeamos si hay un punto activo y estamos navegando
     if (state.phase != GamePhase.navigating) return;
     if (state.selectedPointId == null) return;
+    if (_pointReachHandled) return;
 
     final target = state.points.firstWhere(
       (p) => p.id == state.selectedPointId,
@@ -143,12 +183,17 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     final distance = _distanceMeters(event.position, target.coords);
 
     if (distance <= _arrivalRadiusMeters) {
+      _pointReachHandled = true;
       add(PointReached(target.id));
     }
   }
 
-  void _onPointSelected(PointSelected event, Emitter<GameState> emit) {
-    // Si ya hay un punto activo no completado, no permitir cambiar
+  // ─── PointSelected ──────────────────────────────────────────
+
+  void _onPointSelected(
+    PointSelected event,
+    Emitter<GameState> emit,
+  ) {
     final hasActive = state.points.any((p) => p.isActive && !p.isCompleted);
     if (hasActive) return;
 
@@ -157,6 +202,8 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       if (p.isActive && p.id != event.pointId) return p.copyWith(isActive: false);
       return p;
     }).toList();
+
+    _pointReachHandled = false;
 
     emit(state.copyWith(
       phase: GamePhase.navigating,
@@ -168,13 +215,25 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     _ensureTimerRunning();
   }
 
-  void _onPointReached(PointReached event, Emitter<GameState> emit) {
+  // ─── PointReached ───────────────────────────────────────────
+
+  void _onPointReached(
+    PointReached event,
+    Emitter<GameState> emit,
+  ) {
     if (state.selectedPointId != event.pointId) return;
+    if (state.phase == GamePhase.answering || state.phase == GamePhase.saving) return;
+
     _gameTimer?.cancel();
     emit(state.copyWith(phase: GamePhase.answering));
   }
 
-  void _onQuestionAnswered(QuestionAnswered event, Emitter<GameState> emit) {
+  // ─── QuestionAnswered ───────────────────────────────────────
+
+  void _onQuestionAnswered(
+    QuestionAnswered event,
+    Emitter<GameState> emit,
+  ) {
     final idx = state.points.indexWhere((p) => p.id == event.pointId);
     if (idx == -1) return;
 
@@ -182,19 +241,22 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     int newScore = state.score;
     int newCorrect = state.correctAnswers;
 
+    final firstIncomplete = state.points.indexWhere((p) => !p.isCompleted);
+    final wasInOrder = firstIncomplete == idx;
+
     if (event.isCorrect) {
       final timeBonus = pts[idx].timeRemaining * 5;
-      newScore += 500 + timeBonus;
       newCorrect++;
-      // Marcar completado — este chip desaparece del carrusel
-      pts[idx] = pts[idx].copyWith(isCompleted: true, isActive: false);
+      newScore += wasInOrder ? (500 + timeBonus) : (200 + timeBonus);
     } else {
       newScore = (newScore - 50).clamp(0, 999999);
-      // Respuesta incorrecta: desactivar el punto para que pueda elegir otro
-      pts[idx] = pts[idx].copyWith(isActive: false);
     }
 
+    pts[idx] = pts[idx].copyWith(isCompleted: true, isActive: false);
+
     final allDone = pts.every((p) => p.isCompleted);
+
+    _pointReachHandled = false;
 
     emit(state.copyWith(
       phase: GamePhase.navigating,
@@ -202,7 +264,7 @@ class GameBloc extends Bloc<GameEvent, GameState> {
       score: newScore,
       correctAnswers: newCorrect,
       totalAnswers: state.totalAnswers + 1,
-      clearSelectedPoint: true, // siempre libera la selección tras el quiz
+      clearSelectedPoint: true,
     ));
 
     if (allDone) {
@@ -213,28 +275,50 @@ class GameBloc extends Bloc<GameEvent, GameState> {
     _ensureTimerRunning();
   }
 
-  Future<void> _onGameFinished(GameFinished event, Emitter<GameState> emit) async {
+  // ─── GameFinished ───────────────────────────────────────────
+
+  Future<void> _onGameFinished(
+    GameFinished event,
+    Emitter<GameState> emit,
+  ) async {
     _gameTimer?.cancel();
     _memorizingTimer?.cancel();
     _locationSub?.cancel();
 
+    print('🔵 [BLOC] Fin de la partida. Pasando a GamePhase.saving');
+    print('🔵 [BLOC] UserId: "${state.userId}", Score: ${state.score}, Metros: ${_totalMeters.round()}');
+
     emit(state.copyWith(phase: GamePhase.saving));
 
+    print('🔵 [BLOC] Llamando a saveScore...');
     final scoreResult = await saveScore(state.score);
+    print('🔵 [BLOC] saveScore falló? ${scoreResult.isLeft()}');
+
+    print('🔵 [BLOC] Llamando a saveStats...');
     final statsResult = await saveStats(Stats(
       userId: state.userId,
-      mts: 0,
+      mts: _totalMeters.roundToDouble(),  // ← metros reales acumulados
       time: state.gameTimeSeconds.toDouble(),
       matchs: 1,
       accuracy: state.accuracy * 100,
     ));
+    print('🔵 [BLOC] saveStats falló? ${statsResult.isLeft()}');
 
     final hasError = scoreResult.isLeft() || statsResult.isLeft();
+
+    if (hasError) {
+      print('🔴 [BLOC] Error detectado. Cambiando a GamePhase.error');
+    } else {
+      print('🟢 [BLOC] Todo guardado OK. Cambiando a GamePhase.finished');
+    }
+
     emit(state.copyWith(
       phase: hasError ? GamePhase.error : GamePhase.finished,
       errorMessage: hasError ? 'Error al guardar los resultados' : null,
     ));
   }
+
+  // ─── Zoom ───────────────────────────────────────────────────
 
   void _onZoomIn(ZoomInRequested event, Emitter<GameState> emit) =>
       emit(state.copyWith(zoom: (state.zoom + 1.0).clamp(12.0, 18.0)));
@@ -242,9 +326,14 @@ class GameBloc extends Bloc<GameEvent, GameState> {
   void _onZoomOut(ZoomOutRequested event, Emitter<GameState> emit) =>
       emit(state.copyWith(zoom: (state.zoom - 1.0).clamp(12.0, 18.0)));
 
+  // ─── Internos ───────────────────────────────────────────────
+
   void _ensureTimerRunning() {
     if (_gameTimer?.isActive == true) return;
-    _gameTimer = Timer.periodic(const Duration(seconds: 1), (_) => add(GameTick()));
+    _gameTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => add(GameTick()),
+    );
   }
 
   void _startLocationStream() {

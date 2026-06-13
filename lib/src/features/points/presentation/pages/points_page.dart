@@ -1,478 +1,437 @@
+import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:cazzinitoh_2025/src/core/points/points.dart';
-import 'package:cazzinitoh_2025/src/features/points/presentation/pages/point_page.dart';
-import 'package:cazzinitoh_2025/src/features/points/presentation/widgets/points/DestinationCard.dart';
 import 'package:cazzinitoh_2025/src/features/points/domain/entities/point.dart';
+import 'package:cazzinitoh_2025/src/features/points/presentation/pages/point_detail_page.dart';
 import 'package:flutter/material.dart';
 
-class DestinationSelectorScreen extends StatefulWidget {
-  const DestinationSelectorScreen({Key? key}) : super(key: key);
+class PointsPage extends StatefulWidget {
+  const PointsPage({Key? key}) : super(key: key);
 
   @override
-  State<DestinationSelectorScreen> createState() =>
-      _DestinationSelectorScreenState();
+  State<PointsPage> createState() => _PointsPageState();
 }
 
-class _DestinationSelectorScreenState extends State<DestinationSelectorScreen> {
+class _PointsPageState extends State<PointsPage> {
   final List<Point> points = PointsSrc.points;
-  int? _selectedDestinationId;
-  bool _isNavigating = false;
 
-  void _handleDestinationSelect(int id) {
-    setState(() {
-      _selectedDestinationId = id;
-    });
-  }
-
-  void _handleViewDetails(Point point) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DestinationDetailScreen(point: point),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.purpleBackground,
+              AppColors.purple900,
+              AppColors.purpleBackground,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  itemCount: points.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) => _PointCard(
+                    point: points[index],
+                    number: index + 1,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PointDetailPage(
+                          point: points[index],
+                          number: index + 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  void _handleNavigate() {
-    // No hacee nada si no hay elección
-    if (_selectedDestinationId == null) return;
-
-    setState(() {
-      _isNavigating = true;
-    });
-
-    // El mensaje de "Navegando..." y después devuelve al mapa
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-
-      final chosenId = _selectedDestinationId!;
-      final point = points.firstWhere((p) => p.id == chosenId);
-      print('Navegando a: ${point.name}');
-
-      // Devuelve el id seleccionado al MapPage
-      Navigator.pop(context, chosenId);
-    });
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        border: const Border(
+          bottom: BorderSide(color: Color(0x338B5CF6), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: const Icon(Icons.arrow_back, color: AppColors.purple300),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.purple700.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.place, color: AppColors.purple400, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Puntos de Interés',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkForeground,
+                  ),
+                ),
+                Text(
+                  'Historia de Caleta Olivia',
+                  style: TextStyle(fontSize: 12, color: AppColors.purple300),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.purple700.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.purpleBorder.withOpacity(0.3)),
+            ),
+            child: Text(
+              '${points.length} sitios',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.purple300,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
 
-  void _handleBack() {
-    setState(() {
-      _selectedDestinationId = null;
-      _isNavigating = false;
-    });
+// ─── Card ─────────────────────────────────────────────────────────────────────
+
+class _PointCard extends StatefulWidget {
+  final Point point;
+  final int number;
+  final VoidCallback onTap;
+
+  const _PointCard({
+    required this.point,
+    required this.number,
+    required this.onTap,
+  });
+
+  @override
+  State<_PointCard> createState() => _PointCardState();
+}
+
+class _PointCardState extends State<_PointCard> {
+  final PageController _pageController = PageController();
+  int _currentImage = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isNavigating && _selectedDestinationId != null) {
-      return _buildNavigatingScreen();
-    }
+    final point = widget.point;
+    final images = point.imageUrls;
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF000000), Color(0xFF030712), Color(0xFF581C87)],
-          ),
-        ),
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 448),
-                    child: _selectedDestinationId != null
-                        ? _buildSelectedView()
-                        : _buildListView(),
-                  ),
-                ),
-              ),
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.purpleCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.purpleBorder.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.purple900.withOpacity(0.4),
+              blurRadius: 20,
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Color(0xB31F2937),
-        border: Border(bottom: BorderSide(color: Color(0xFF7C3AED), width: 1)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0x4D7C3AED),
-                borderRadius: BorderRadius.circular(8),
+            // ── Carrusel ────────────────────────────────────────────────────
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Stack(
+                children: [
+                  SizedBox(
+                    height: 200,
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: images.length,
+                      onPageChanged: (i) => setState(() => _currentImage = i),
+                      itemBuilder: (_, i) => Image.asset(
+                        images[i],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppColors.purpleCardBorder,
+                          child: const Icon(Icons.broken_image,
+                              size: 48, color: Color(0xFF6B7280)),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Badge número
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.purple900.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.purpleBorder.withOpacity(0.5)),
+                      ),
+                      child: Text(
+                        '#${widget.number}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.purple300,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Contador
+                  if (images.length > 1)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${_currentImage + 1}/${images.length}',
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.white, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ),
+
+                  // Flechas
+                  if (images.length > 1) ...[
+                    if (_currentImage > 0)
+                      _Arrow(
+                        left: true,
+                        onTap: () => _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        ),
+                      ),
+                    if (_currentImage < images.length - 1)
+                      _Arrow(
+                        left: false,
+                        onTap: () => _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        ),
+                      ),
+                  ],
+
+                  // Dots
+                  if (images.length > 1)
+                    Positioned(
+                      bottom: 10,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          images.length,
+                          (i) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: _currentImage == i ? 18 : 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: _currentImage == i
+                                  ? AppColors.purple400
+                                  : Colors.white.withOpacity(0.4),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Gradiente inferior
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 60,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            AppColors.purpleCard.withOpacity(0.6),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.explore,
-                size: 24,
-                color: Color(0xFFA855F7),
-              ),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
+
+            // ── Info ────────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Seleccionar Destino',
-                    style: TextStyle(
+                    point.name,
+                    style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.purple300,
+                      height: 1.3,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 13, color: AppColors.purple400),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          point.address,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Text(
-                    'Elige tu próxima aventura',
-                    style: TextStyle(fontSize: 12, color: Color(0xFFD8B4FE)),
+                    point.description,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFFD1D5DB),
+                      height: 1.5,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.purpleBorder.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppColors.purpleBorder.withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.my_location,
+                                size: 12, color: AppColors.purpleBorder),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${point.coords.latitude.toStringAsFixed(4)}, ${point.coords.longitude.toStringAsFixed(4)}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.purpleBorder,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        children: const [
+                          Text(
+                            'Ver detalle',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.purple400,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_ios,
+                              size: 11, color: AppColors.purple400),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-            Row(
-              children: [
-                const Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: Color(0xFFD8B4FE),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  TimeOfDay.now().format(context),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFD8B4FE),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildListView() {
-    print('Número de puntos: ${points.length}'); // Debug
+class _Arrow extends StatelessWidget {
+  final bool left;
+  final VoidCallback onTap;
+  const _Arrow({required this.left, required this.onTap});
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xCC1F2937),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF7C3AED)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0x4D7C3AED),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.map,
-                  size: 16,
-                  color: Color(0xFFA855F7),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Información',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'La secuencia de puntos ha desaparecido. Selecciona tu próximo destino basándote en las pistas descubiertas.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFFD8B4FE),
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Row(
-          children: [
-            Icon(Icons.explore, size: 20, color: Color(0xFFA855F7)),
-            SizedBox(width: 8),
-            Text(
-              'Destinos Disponibles',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Mostrar mensaje si no hay puntos
-        if (points.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left ? 8 : null,
+      right: left ? null : 8,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
-              color: const Color(0xFF1F2937),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF374151)),
+              color: Colors.black.withOpacity(0.4),
+              shape: BoxShape.circle,
             ),
-            child: const Center(
-              child: Column(
-                children: [
-                  Icon(Icons.info_outline, size: 48, color: Color(0xFF6B7280)),
-                  SizedBox(height: 12),
-                  Text(
-                    'No hay puntos disponibles',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Verifica que PointsSrc.points tenga datos',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-        // Lista de puntos
-        if (points.isNotEmpty)
-          ...List.generate(points.length, (index) {
-            final point = points[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: DestinationCard(
-                point: point,
-                onSelect: _handleDestinationSelect,
-                onViewDetails: _handleViewDetails,
-              ),
-            );
-          }),
-      ],
-    );
-  }
-
-  Widget _buildSelectedView() {
-    final selectedPoint = points.firstWhere(
-      (p) => p.id == _selectedDestinationId,
-    );
-
-    return Column(
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _handleBack,
-            icon: const Icon(Icons.arrow_back, size: 16),
-            label: const Text('Volver a la lista'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFD8B4FE),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xCC1F2937),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF7C3AED)),
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.map, size: 20, color: Color(0xFFD8B4FE)),
-                  SizedBox(width: 8),
-                  Text(
-                    'Destino Seleccionado',
-                    style: TextStyle(fontSize: 14, color: Color(0xFFD8B4FE)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ✅ Solo foto + título
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: selectedPoint.imageUrls.isNotEmpty
-                    ? Image.asset(
-                        selectedPoint.imageUrls.first,
-                        width: double.infinity,
-                        height: 180,
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        width: double.infinity,
-                        height: 180,
-                        color: const Color(0xFF374151),
-                        child: const Icon(
-                          Icons.image,
-                          color: Color(0xFF9CA3AF),
-                          size: 64,
-                        ),
-                      ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                selectedPoint.name,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _selectedDestinationId != null
-                      ? _handleNavigate
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C3AED),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 8,
-                    shadowColor: const Color(0x66581C87),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.navigation, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Confirmar y Navegar',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNavigatingScreen() {
-    final point = points.firstWhere((p) => p.id == _selectedDestinationId);
-
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF030712), Color(0xFF581C87), Color(0xFF000000)],
-          ),
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 384),
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: const Color(0xCC1F2937),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF7C3AED)),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF7C3AED).withOpacity(0.4),
-                    blurRadius: 16,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 64,
-                    height: 64,
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFFA855F7),
-                      ),
-                      strokeWidth: 3,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Navegando hacia',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    point.name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFD8B4FE),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Preparando tu aventura...',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
-                  ),
-                ],
-              ),
+            child: Icon(
+              left ? Icons.chevron_left : Icons.chevron_right,
+              color: Colors.white,
+              size: 20,
             ),
           ),
         ),

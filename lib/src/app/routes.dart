@@ -1,13 +1,13 @@
 import 'package:cazzinitoh_2025/src/features/games/presentation/pages/map_page.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/pages/quiz_page.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/pages/stats_page.dart';
-import 'package:cazzinitoh_2025/src/features/points/presentation/pages/points_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/game_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/help_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/home_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/leaderboard_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/menu_page.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/pages/profile_page.dart';
+import 'package:cazzinitoh_2025/src/features/points/presentation/pages/points_page.dart';
 
 import 'package:flutter/material.dart';
 
@@ -31,8 +31,8 @@ class AppRoutes {
     leaderboard: (context) => const LeaderboardScreen(),
     help: (context) => const HelpPage(),
     game: (context) => const GamePage(),
-    points: (context) => const DestinationSelectorScreen(),
     quiz: (context) => const QuizPage(),
     maps: (context) => const MapPage(),
+    points: (context) => const PointsPage(),
   };
 }

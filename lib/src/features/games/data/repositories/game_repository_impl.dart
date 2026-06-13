@@ -87,4 +87,16 @@ class GameRepositoryImpl implements GameRepository {
       );
     }
   }
+
+  @override
+Future<Either<Failure, List<ScoreLeaderboard>>> getUserScores(String userId) async {
+  try {
+    final scores = await remoteDatasource.getUserScores(userId);
+    return Right(scores);
+  } on Failure catch (e) {
+    return Left(e);
+  } catch (e) {
+    return Left(ServerFailure(message: e.toString()));
+  }
+}
 }

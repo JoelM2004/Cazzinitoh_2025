@@ -1,4 +1,5 @@
 import 'package:cazzinitoh_2025/src/features/games/presentation/blocs/game_bloc.dart';
+import 'package:cazzinitoh_2025/src/features/games/presentation/blocs/stats/stats_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/leaderboard/leaderboard_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/load_user/load_user_bloc.dart';
 import 'package:cazzinitoh_2025/src/features/users/presentation/bloc/login_user/login_user_bloc.dart';
@@ -22,6 +23,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: (_) => GetIt.instance.get<UpdateUserBloc>()),
         BlocProvider(create: (_) => GetIt.instance.get<LeaderboardBloc>()),
         BlocProvider(create: (_) => GetIt.instance.get<GameBloc>()),
+        BlocProvider(create: (_) => GetIt.instance.get<StatsBloc>()),
       ],
       child: child,
     );

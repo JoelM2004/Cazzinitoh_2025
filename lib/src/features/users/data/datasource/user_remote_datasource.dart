@@ -57,9 +57,9 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
       );
 
       if (result.documents.isNotEmpty) {
-        Session.currentUser = _docToUserModel(result.documents.first);
-        print('Usuario cargado: ${Session.currentUser!.name}');
-      }
+      Session.currentUser = _docToUserModel(result.documents.first);
+
+    }
 
       return true;
     } on AppwriteException catch (e) {
@@ -101,10 +101,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
         },
       );
 
-
-
-      print('Usuario registrado con ID: ${authUser.$id}');
-
       return true;
     } on AppwriteException catch (e) {
       throw ServerFailure(message: e.message ?? 'Registro fallido');
@@ -116,7 +112,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDatasource {
     try {
       await _account.deleteSession(sessionId: 'current');
       Session.currentUser = null;
-      print('Sesión cerrada');
       return true;
     } on AppwriteException catch (e) {
       throw ServerFailure(message: e.message ?? 'Logout fallido');
@@ -209,7 +204,7 @@ Future<List<ScoreLeaderboardModel>> getLeaderboard() async {
       queries: [
         Query.orderDesc('score'),
         Query.limit(10),
-        Query.select(['*', 'users.*']),
+        Query.select(['*', 'user.*']),
       ],
     );
 
@@ -218,8 +213,8 @@ Future<List<ScoreLeaderboardModel>> getLeaderboard() async {
 
     return result.documents
         .where((doc) {
-          final users = doc.data['users'];
-          if (users == null || (users as List).isEmpty) {
+          final user = doc.data['user'];
+          if (user == null) {
             print('[Leaderboard] Documento sin user: ${doc.$id}');
             return false;
           }
@@ -228,7 +223,7 @@ Future<List<ScoreLeaderboardModel>> getLeaderboard() async {
         .map((doc) {
           final user = UserModel.fromJson(
             Map<String, dynamic>.from(
-              (doc.data['users'] as List).first,
+              doc.data['user'] as Map<String, dynamic>, // 👈 objeto directo
             ),
           );
 

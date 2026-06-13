@@ -22,6 +22,9 @@ class MenuPage extends StatelessWidget {
       case 'leaderboard':
         Navigator.pushNamed(context, AppRoutes.leaderboard);
         break;
+      case 'points':
+        Navigator.pushNamed(context, AppRoutes.points);
+        break;
       case 'logout':
         // Aquí hacés logout y redirigís al login/home
         Navigator.pushReplacementNamed(context, AppRoutes.home);
@@ -51,31 +54,7 @@ class MenuPage extends StatelessWidget {
                 // Header
                 Column(
                   children: [
-                    Container(
-                      width: 96,
-                      height: 96,
-                      margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF8B5CF6),
-                          width: 4,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                            blurRadius: 32,
-                            spreadRadius: 0,
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: Image.network(
-                          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFXPjQLqQ1omAaN1fe-qqg_NoDsM7rZ4L9C4TDuuA6zTHu8hGN_PEDH8-WCMc64Nt4gAg&usqp=CAU',
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+                    
                     const Text(
                       'Memory Trip',
                       style: TextStyle(
@@ -110,6 +89,14 @@ class MenuPage extends StatelessWidget {
                           description: 'Comienza tu aventura',
                           onTap: () => _handleMenuAction(context, 'game'),
                           variant: GameMenuButtonVariant.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        GameMenuButton(
+                          icon: const Icon(Icons.place),
+                          title: 'Puntos de Interés',
+                          description: 'Explorá los sitios históricos',
+                          onTap: () => _handleMenuAction(context, 'points'),
+                          variant: GameMenuButtonVariant.secondary,
                         ),
                         const SizedBox(height: 16),
                         GameMenuButton(

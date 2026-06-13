@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:cazzinitoh_2025/src/app/routes.dart';
@@ -6,17 +7,211 @@ import 'package:cazzinitoh_2025/src/app/theme.dart';
 import 'package:cazzinitoh_2025/src/core/points/points.dart';
 import 'package:cazzinitoh_2025/src/core/session/session.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/blocs/game_bloc.dart';
-import 'package:cazzinitoh_2025/src/features/games/presentation/widgets/maps/current_location_market.dart';
-import 'package:cazzinitoh_2025/src/features/games/presentation/widgets/maps/destination_marker.dart';
-import 'package:cazzinitoh_2025/src/features/games/presentation/widgets/maps/game_header.dart';
 import 'package:cazzinitoh_2025/src/features/games/presentation/widgets/maps/game_stats.dart';
 import 'package:cazzinitoh_2025/src/features/points/domain/entities/point.dart';
+import 'package:cazzinitoh_2025/src/features/users/presentation/widgets/game/difficulty_card.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
+
+// ─────────────────────────────────────────────────────────────
+// Utilidades
+// ─────────────────────────────────────────────────────────────
+
+gm.LatLng _toGm(ll.LatLng p) => gm.LatLng(p.latitude, p.longitude);
+
+int _pointCountForDifficulty(Difficulty d) {
+  switch (d) {
+    case Difficulty.easy:   return 3;
+    case Difficulty.medium: return 5;
+    case Difficulty.hard:   return 7;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Builders de BitmapDescriptor con Canvas
+// ─────────────────────────────────────────────────────────────
+
+/// Marker de ubicación actual: círculo azul con ícono persona
+Future<gm.BitmapDescriptor> _buildCurrentLocationBitmap() async {
+  const size = 110.0;
+  const scale = 2.5;
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  
+  // 🔴 AGREGADO ESCALADO AQUÍ TAMBIÉN
+  canvas.scale(scale, scale);
+
+  final center = const Offset(size / 2, size / 2);
+
+  canvas.drawCircle(center, size / 2, Paint()..color = const Color(0xFF00B4FF).withOpacity(0.22));
+  canvas.drawCircle(center, 30, Paint()..color = const Color(0xFF00B4FF));
+  canvas.drawCircle(
+    center,
+    30, // Aseguramos que el borde envuelva al radio real de 30
+    Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5.0,
+  );
+  canvas.drawCircle(center, 9, Paint()..color = Colors.white);
+
+  final picture = recorder.endRecording();
+  final img = await picture.toImage((size * scale).toInt(), (size * scale).toInt());
+  final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+  return gm.BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+}
+
+/// Marker de punto: pin moderno con imagen y número condicional.
+///
+/// GEOMETRÍA DEL PIN:
+///   - El canvas tiene totalH píxeles de alto.
+///   - La punta del triángulo está en Y = circleR * 2 + padding + pinPointerH.
+///   - El anchor que pasamos a GoogleMaps es (0.5, puntaY / totalH)
+///     → así la punta queda EXACTAMENTE sobre las coordenadas geográficas.
+Future<gm.BitmapDescriptor> _buildPointBitmap({
+  required int order,
+  required String? imageAssetPath,
+  required bool isActive,
+  required bool showNumber,
+}) async {
+  const circleR     = 68.0;
+  const pinPointerH = 34.0;
+  const padTop      = 24.0;
+  const padSide     = 24.0;
+  const scale       = 2.5;
+
+  final totalW = circleR * 2 + padSide * 2;
+  final totalH = padTop + circleR * 2 + pinPointerH;
+
+  final cx = totalW / 2;
+  final cy = padTop + circleR;
+
+  final bgColor = isActive ? const Color(0xFFFACC15) : const Color(0xFF7C3AED);
+
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+
+  // 🔴 AQUÍ ESTÁ LA MAGIA QUE FALTABA
+  // Esto expande el dibujo para que llene todo el cuadro de alta resolución
+  canvas.scale(scale, scale);
+
+  // 1. Sombra bajo el pin (Ajustada para que pise exacto el suelo)
+  final shadowPath = Path()
+    ..addOval(Rect.fromCenter(
+      center: Offset(cx, totalH - 4), // Ligeramente arriba de la punta
+      width: circleR * 1.3,
+      height: 8,
+    ));
+  canvas.drawShadow(shadowPath, Colors.black.withOpacity(0.5), 14, true);
+
+  // 2. Forma del pin
+  final tipY = totalH; // La punta toca exactamente el borde inferior
+  final pinPath = Path()
+    ..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: circleR))
+    ..moveTo(cx - 20, cy + circleR - 10)
+    ..lineTo(cx + 20, cy + circleR - 10)
+    ..lineTo(cx, tipY)
+    ..close();
+
+  canvas.drawPath(pinPath, Paint()..color = bgColor);
+  canvas.drawPath(
+    pinPath,
+    Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.0,
+  );
+
+  // 3. Imagen circular
+  final innerR = circleR - 10;
+  if (imageAssetPath != null) {
+    try {
+      final data = await rootBundle.load(imageAssetPath);
+      final codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: ((innerR * 2) * scale).toInt(),
+        targetHeight: ((innerR * 2) * scale).toInt(),
+      );
+      final frame = await codec.getNextFrame();
+
+      canvas.save();
+      canvas.clipPath(Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: innerR)));
+      canvas.drawImageRect(
+        frame.image,
+        Rect.fromLTWH(0, 0, frame.image.width.toDouble(), frame.image.height.toDouble()),
+        Rect.fromCenter(center: Offset(cx, cy), width: innerR * 2, height: innerR * 2),
+        Paint(),
+      );
+      canvas.restore();
+    } catch (_) {
+      _drawFallbackCircle(canvas, cx, cy, innerR);
+    }
+  } else {
+    _drawFallbackCircle(canvas, cx, cy, innerR);
+  }
+
+  // 4. Badge numérico
+  if (showNumber) {
+    const badgeR = 22.0;
+    final badgeCx = cx + circleR - 14;
+    final badgeCy = cy - circleR + 14;
+
+    canvas.drawCircle(Offset(badgeCx, badgeCy + 2), badgeR, Paint()..color = Colors.black38);
+    canvas.drawCircle(Offset(badgeCx, badgeCy), badgeR, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      Offset(badgeCx, badgeCy),
+      badgeR,
+      Paint()..color = bgColor..style = PaintingStyle.stroke..strokeWidth = 4.0,
+    );
+
+    final numPainter = TextPainter(
+      text: TextSpan(
+        text: '$order',
+        style: TextStyle(color: bgColor, fontSize: 24, fontWeight: FontWeight.bold),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    numPainter.paint(
+      canvas,
+      Offset(badgeCx - numPainter.width / 2, badgeCy - numPainter.height / 2),
+    );
+  }
+
+  final picture = recorder.endRecording();
+  final img = await picture.toImage((totalW * scale).toInt(), (totalH * scale).toInt());
+  final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+  return gm.BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+}
+
+void _drawFallbackCircle(Canvas canvas, double cx, double cy, double r) {
+  canvas.drawCircle(Offset(cx, cy), r, Paint()..color = const Color(0xFF1a1033));
+}
+
+/// Calcula el anchor Y correcto para que la PUNTA del pin
+/// quede exactamente sobre la coordenada geográfica.
+///
+/// anchor = (0.5, tipY / totalH)  donde tipY es la Y de la punta en píxeles lógicos.
+/*Offset _pinAnchor() {
+  const circleR    = 52.0;
+  const pinPointerH = 22.0;
+  const padTop     = 16.0;
+  const padSide    = 20.0;
+
+  final totalW = circleR * 2 + padSide * 2;
+  final totalH = padTop + circleR * 2 + pinPointerH + 8.0;
+  final cy     = padTop + circleR;
+  final tipY   = cy + circleR + pinPointerH;
+
+  return Offset(0.5, tipY / totalH);
+}*/
+
+// ─────────────────────────────────────────────────────────────
+// MapPage
+// ─────────────────────────────────────────────────────────────
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -26,28 +221,41 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  GoogleMapController? _mapController;
-  final Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
-  bool _loadingRoute = false;
-  double _currentZoom = 14.0;
+  gm.GoogleMapController? _mapController;
+  final Set<gm.Marker> _markers = {};
+  final Set<gm.Polyline> _polylines = {};
+
+  bool _loadingRoute    = false;
   bool _gameInitialized = false;
+  bool _quizInProgress  = false;
 
-  // Cache de BitmapDescriptors para no regenerarlos cada tick
-  BitmapDescriptor? _currentLocationIcon;
+  Difficulty _difficulty = Difficulty.medium;
+  List<gm.LatLng> _activeRoutePoints = [];
 
-  // ────────────────────────────────────────────────────────────
-  // Lifecycle
-  // ────────────────────────────────────────────────────────────
+  gm.BitmapDescriptor? _currentLocationBitmap;
+  final Map<String, gm.BitmapDescriptor> _pointBitmaps = {};
+
+  // Anchor pre-calculado (constante, no depende del estado)
+  // final Offset _pinAnchorOffset = _pinAnchor();
+
+  // ─── Inicialización ─────────────────────────────────────────
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     if (!_gameInitialized) {
       _gameInitialized = true;
 
-      final points = PointsSrc.points.map((p) => p.copyWith(
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null && args['difficulty'] is Difficulty) {
+        _difficulty = args['difficulty'] as Difficulty;
+      }
+
+      final count = _pointCountForDifficulty(_difficulty);
+      
+      final allPoints = List<Point>.from(PointsSrc.points)..shuffle();
+
+      final selectedPoints = allPoints.take(count).map((p) => p.copyWith(
         timeRemaining: 60,
         totalTime: 60,
         isActive: false,
@@ -55,169 +263,179 @@ class _MapPageState extends State<MapPage> {
       )).toList();
 
       context.read<GameBloc>().add(GameStarted(
-        points: points,
-        sequenceIds: points.map((p) => p.id).toList(),
+        points: selectedPoints,
+        sequenceIds: selectedPoints.map((p) => p.id).toList(),
         userId: Session.currentUser?.id ?? '',
       ));
     }
   }
 
-  // ────────────────────────────────────────────────────────────
-  // Convertir widget a BitmapDescriptor para Google Maps
-  // ────────────────────────────────────────────────────────────
+  // ─── Bitmaps ────────────────────────────────────────────────
 
-  Future<BitmapDescriptor> _widgetToBitmap(Widget widget, {double pixelRatio = 2.0}) async {
-    final repaintKey = GlobalKey();
+  Future<void> _ensureBitmaps(GameState state) async {
+    _currentLocationBitmap ??= await _buildCurrentLocationBitmap();
 
-    // Renderizamos el widget off-screen
-    final renderWidget = RepaintBoundary(
-      key: repaintKey,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: Center(child: widget),
-        ),
-      ),
-    );
-
-    final pipelineOwner = PipelineOwner();
-    final buildOwner = BuildOwner(focusManager: FocusManager());
-    final rootElement = RenderObjectToWidgetAdapter<RenderBox>(
-      container: pipelineOwner.rootNode as RenderView,
-      child: renderWidget,
-    ).attachToRenderTree(buildOwner);
-
-    buildOwner.buildScope(rootElement);
-    buildOwner.finalizeTree();
-    pipelineOwner.flushLayout();
-    pipelineOwner.flushCompositingBits();
-    pipelineOwner.flushPaint();
-
-    // Alternativa más simple y confiable: usar WidgetsApp + toImage
-    // Usamos el approach de Overlay en vez del pipeline manual
-    final controller = OverlayEntry(
-      builder: (_) => Positioned(
-        left: -9999,
-        top: -9999,
-        child: RepaintBoundary(key: repaintKey, child: widget),
-      ),
-    );
-
-    Overlay.of(context).insert(controller);
-    await Future.delayed(const Duration(milliseconds: 50));
-
-    final boundary = repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null) {
-      controller.remove();
-      return BitmapDescriptor.defaultMarker;
-    }
-
-    final image = await boundary.toImage(pixelRatio: pixelRatio);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    controller.remove();
-
-    if (byteData == null) return BitmapDescriptor.defaultMarker;
-
-    return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
-  }
-
-  // ────────────────────────────────────────────────────────────
-  // Markers
-  // ────────────────────────────────────────────────────────────
-
-  Future<void> _rebuildMarkersAndPolylines(GameState state) async {
-    final newMarkers = <Marker>{};
-    final newPolylines = <Polyline>{};
-
-    // ── Marker de ubicación actual ──
-    _currentLocationIcon ??= await _widgetToBitmap(
-      const CurrentLocationMarkerWidget(),
-    );
-
-    newMarkers.add(Marker(
-      markerId: const MarkerId('current_location'),
-      position: LatLng(state.currentLocation.latitude, state.currentLocation.longitude),
-      icon: _currentLocationIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-      anchor: const Offset(0.5, 0.5),
-    ));
-
-    // ── Markers de puntos ──
-    final hasActive = state.points.any((p) => p.isActive && !p.isCompleted);
+    final showNum = state.phase == GamePhase.memorizing || state.phase == GamePhase.waiting;
 
     for (int i = 0; i < state.points.length; i++) {
       final point = state.points[i];
-
-      // Nunca mostrar los completados
       if (point.isCompleted) continue;
 
-      // Durante memorizing: mostrar todos. Durante navigating: si hay uno activo,
-      // solo mostrar el activo; si no hay ninguno activo, mostrar todos los pendientes.
-      final showMarker = state.phase == GamePhase.memorizing ||
-          state.phase == GamePhase.waiting ||
-          point.isActive ||
-          !hasActive;
-
-      if (!showMarker) continue;
-
-      final icon = await _widgetToBitmap(
-        DestinationMarkerWidget(
+      final cacheKey = '${point.id}_${point.isActive}_$showNum';
+      if (!_pointBitmaps.containsKey(cacheKey)) {
+        _pointBitmaps[cacheKey] = await _buildPointBitmap(
           order: i + 1,
-          title: point.name,
-          timeRemaining: point.timeRemaining,
-          totalTime: point.totalTime,
+          imageAssetPath: point.imageUrls.isNotEmpty ? point.imageUrls.first : null,
           isActive: point.isActive,
-          isCompleted: false,
-          imageUrl: point.imageUrls.isNotEmpty ? point.imageUrls.first : null,
-          onTap: () {},
-        ),
-      );
+          showNumber: showNum,
+        );
+      }
+    }
+  }
 
-      newMarkers.add(Marker(
-        markerId: MarkerId('point_${point.id}'),
-        position: LatLng(point.coords.latitude, point.coords.longitude),
+  // ─── Markers ────────────────────────────────────────────────
+
+  Future<void> _rebuildMarkers(GameState state) async {
+    await _ensureBitmaps(state);
+
+    final newMarkers   = <gm.Marker>{};
+    final newPolylines = <gm.Polyline>{};
+    final hasActive    = state.points.any((p) => p.isActive && !p.isCompleted);
+    final showNum      = state.phase == GamePhase.memorizing || state.phase == GamePhase.waiting;
+
+    // Marker de ubicación actual
+    newMarkers.add(gm.Marker(
+      markerId: const gm.MarkerId('current_location'),
+      position: _toGm(state.currentLocation),
+      icon: _currentLocationBitmap ?? gm.BitmapDescriptor.defaultMarkerWithHue(210),
+      anchor: const Offset(0.5, 0.5),
+      zIndex: 10,
+      flat: true,
+    ));
+
+    // Markers de puntos
+    for (int i = 0; i < state.points.length; i++) {
+      final point = state.points[i];
+      if (point.isCompleted) continue;
+
+      // Durante navegación/respuesta solo mostramos el punto activo
+      if (hasActive &&
+          !point.isActive &&
+          (state.phase == GamePhase.navigating || state.phase == GamePhase.answering)) {
+        continue;
+      }
+
+      final cacheKey = '${point.id}_${point.isActive}_$showNum';
+      final icon = _pointBitmaps[cacheKey] ??
+          gm.BitmapDescriptor.defaultMarkerWithHue(gm.BitmapDescriptor.hueViolet);
+
+      newMarkers.add(gm.Marker(
+        markerId: gm.MarkerId('point_${point.id}'),
+        position: _toGm(point.coords),
         icon: icon,
-        anchor: const Offset(0.5, 1.0),
+        // ← PUNTA del pin sobre la coordenada geográfica
+        anchor: const Offset(0.5, 1.0), // 0.5 (X centro), 1.0 (Y abajo). Precisión perfecta.
         onTap: () => _onPointTapped(point, state),
       ));
     }
 
-    // ── Polilínea (solo memorizing) ──
+    // Polyline durante memorización
     if (state.phase == GamePhase.memorizing && state.points.isNotEmpty) {
-      final allCoords = <LatLng>[
-        LatLng(state.currentLocation.latitude, state.currentLocation.longitude),
-        ...state.points
-            .where((p) => !p.isCompleted)
-            .map((p) => LatLng(p.coords.latitude, p.coords.longitude)),
-      ];
-      newPolylines.add(Polyline(
-        polylineId: const PolylineId('simple_route'),
-        points: allCoords,
-        color: AppColors.purple500.withOpacity(0.5),
-        width: 3,
+      _fetchMemorizingRoute(state.currentLocation, state.points.where((p) => !p.isCompleted).toList());
+    }
+
+    // Ruta OSRM activa
+    if (_activeRoutePoints.isNotEmpty) {
+      newPolylines.add(gm.Polyline(
+        polylineId: const gm.PolylineId('osrm_route'),
+        points: _activeRoutePoints,
+        color: const Color(0xFF7c3aed),
+        width: 5,
+        patterns: [gm.PatternItem.dash(20), gm.PatternItem.gap(8)],
       ));
     }
 
     if (mounted) {
       setState(() {
-        _markers..clear()..addAll(newMarkers);
-        _polylines..clear()..addAll(newPolylines);
+        _markers
+          ..clear()
+          ..addAll(newMarkers);
+        _polylines
+          ..clear()
+          ..addAll(newPolylines);
       });
     }
   }
 
-  // ────────────────────────────────────────────────────────────
-  // Tap en punto
-  // ────────────────────────────────────────────────────────────
+  Future<void> _fetchMemorizingRoute(ll.LatLng origin, List<Point> points) async {
+  final allWaypoints = [origin, ...points.map((p) => p.coords)];
+  if (allWaypoints.length < 2) return;
+
+  // Construye el string de coordenadas para OSRM
+  final coords = allWaypoints
+      .map((p) => '${p.longitude},${p.latitude}')
+      .join(';');
+
+  final url = Uri.parse(
+    'https://router.project-osrm.org/route/v1/foot/$coords'
+    '?overview=full&geometries=geojson',
+  );
+
+  try {
+    final response = await http.get(url).timeout(const Duration(seconds: 10));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final routes = data['routes'] as List?;
+      if (routes != null && routes.isNotEmpty) {
+        final coords = routes[0]['geometry']['coordinates'] as List;
+        final routePoints = coords
+            .map((c) => gm.LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+            .toList();
+
+        if (mounted) {
+          setState(() {
+            _polylines.removeWhere(
+              (p) => p.polylineId == const gm.PolylineId('memorizing_route'),
+            );
+            _polylines.add(gm.Polyline(
+              polylineId: const gm.PolylineId('memorizing_route'),
+              points: routePoints,
+              color: const Color(0xFF7c3aed).withOpacity(0.6),
+              width: 3,
+            ));
+          });
+        }
+      }
+    }
+  } catch (_) {
+    // Silenciamos error, no es crítico
+  }
+}
+
+  void _updateLocationMarkerOnly(GameState state) {
+    if (_currentLocationBitmap == null || !mounted) return;
+    setState(() {
+      _markers.removeWhere((m) => m.markerId == const gm.MarkerId('current_location'));
+      _markers.add(gm.Marker(
+        markerId: const gm.MarkerId('current_location'),
+        position: _toGm(state.currentLocation),
+        icon: _currentLocationBitmap!,
+        anchor: const Offset(0.5, 0.5),
+        zIndex: 10,
+        flat: true,
+      ));
+    });
+  }
+
+  // ─── Tap en marker ──────────────────────────────────────────
 
   void _onPointTapped(Point point, GameState state) {
     if (state.phase != GamePhase.navigating) return;
     if (point.isCompleted) return;
 
-    // Si ya hay un punto activo, no se puede seleccionar otro
     final hasActive = state.points.any((p) => p.isActive && !p.isCompleted);
     if (hasActive && !point.isActive) {
-      _showSnackbar('Primero llegá al punto que seleccionaste');
+      _showSnackbar('Primero llegá al punto activo');
       return;
     }
 
@@ -227,6 +445,7 @@ class _MapPageState extends State<MapPage> {
         point: point,
         onConfirm: () {
           Navigator.pop(ctx);
+          _pointBitmaps.removeWhere((key, _) => key.startsWith('${point.id}_'));
           context.read<GameBloc>().add(PointSelected(point.id));
           _getOSRMRoute(state.currentLocation, point.coords);
         },
@@ -234,15 +453,13 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  // ────────────────────────────────────────────────────────────
-  // OSRM
-  // ────────────────────────────────────────────────────────────
+  // ─── OSRM ───────────────────────────────────────────────────
 
   Future<void> _getOSRMRoute(ll.LatLng origin, ll.LatLng destination) async {
-    setState(() => _loadingRoute = true);
+    if (mounted) setState(() => _loadingRoute = true);
 
     final url = Uri.parse(
-      'http://router.project-osrm.org/route/v1/driving/'
+      'https://router.project-osrm.org/route/v1/foot/'
       '${origin.longitude},${origin.latitude};'
       '${destination.longitude},${destination.latitude}'
       '?overview=full&geometries=geojson',
@@ -250,31 +467,38 @@ class _MapPageState extends State<MapPage> {
 
     try {
       final response = await http.get(url).timeout(const Duration(seconds: 10));
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data   = jsonDecode(response.body);
         final routes = data['routes'] as List?;
-
         if (routes != null && routes.isNotEmpty) {
           final coords = routes[0]['geometry']['coordinates'] as List;
-          final routePoints = coords
-              .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+          _activeRoutePoints = coords
+              .map((c) => gm.LatLng(
+                    (c[1] as num).toDouble(),
+                    (c[0] as num).toDouble(),
+                  ))
               .toList();
 
           if (mounted) {
             setState(() {
-              _polylines.removeWhere((p) => p.polylineId == const PolylineId('osrm_route'));
-              _polylines.add(Polyline(
-                polylineId: const PolylineId('osrm_route'),
-                points: routePoints,
-                color: AppColors.purple300,
+              _polylines.removeWhere(
+                (p) => p.polylineId == const gm.PolylineId('osrm_route'),
+              );
+              _polylines.add(gm.Polyline(
+                polylineId: const gm.PolylineId('osrm_route'),
+                points: _activeRoutePoints,
+                color: const Color(0xFF7c3aed),
                 width: 5,
+                patterns: [gm.PatternItem.dash(20), gm.PatternItem.gap(8)],
               ));
             });
+            _mapController?.animateCamera(
+              gm.CameraUpdate.newLatLngBounds(
+                _boundsFromPoints(_activeRoutePoints),
+                80,
+              ),
+            );
           }
-
-          final bounds = _boundsFromPoints(routePoints);
-          _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
         }
       } else {
         _showSnackbar('Sin conexión: no se pudo calcular la ruta');
@@ -286,18 +510,27 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  LatLngBounds _boundsFromPoints(List<LatLng> points) {
-    double minLat = points.first.latitude, maxLat = points.first.latitude;
-    double minLng = points.first.longitude, maxLng = points.first.longitude;
-    for (final p in points) {
+  void _clearRoute() {
+    _activeRoutePoints = [];
+    if (mounted) {
+      setState(() => _polylines.removeWhere(
+            (p) => p.polylineId == const gm.PolylineId('osrm_route'),
+          ));
+    }
+  }
+
+  gm.LatLngBounds _boundsFromPoints(List<gm.LatLng> pts) {
+    double minLat = pts.first.latitude, maxLat = pts.first.latitude;
+    double minLng = pts.first.longitude, maxLng = pts.first.longitude;
+    for (final p in pts) {
       if (p.latitude < minLat) minLat = p.latitude;
       if (p.latitude > maxLat) maxLat = p.latitude;
       if (p.longitude < minLng) minLng = p.longitude;
       if (p.longitude > maxLng) maxLng = p.longitude;
     }
-    return LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
+    return gm.LatLngBounds(
+      southwest: gm.LatLng(minLat, minLng),
+      northeast: gm.LatLng(maxLat, maxLng),
     );
   }
 
@@ -306,26 +539,25 @@ class _MapPageState extends State<MapPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  // ────────────────────────────────────────────────────────────
-  // Quiz — lanzado automáticamente cuando el bloc detecta llegada
-  // ────────────────────────────────────────────────────────────
+  // ─── Quiz ───────────────────────────────────────────────────
 
-  Future<void> _launchQuizForPoint(Point point) async {
+  Future<void> _launchQuiz(Point point) async {
+    _clearRoute();
+
     final result = await Navigator.pushNamed(
       context,
       AppRoutes.quiz,
       arguments: {'pointId': point.id, 'pointName': point.name},
     );
 
+    _quizInProgress = false;
     if (!mounted) return;
 
-    final bool correct = result == true;
-    context.read<GameBloc>().add(QuestionAnswered(point.id, correct));
+    _pointBitmaps.removeWhere((key, _) => key.startsWith('${point.id}_'));
+    context.read<GameBloc>().add(QuestionAnswered(point.id, result == true));
   }
 
-  // ────────────────────────────────────────────────────────────
-  // Build
-  // ────────────────────────────────────────────────────────────
+  // ─── Build ──────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -333,18 +565,24 @@ class _MapPageState extends State<MapPage> {
       listenWhen: (prev, curr) =>
           prev.phase != curr.phase ||
           prev.selectedPointId != curr.selectedPointId ||
-          prev.completedCount != curr.completedCount ||
-          prev.currentLocation != curr.currentLocation,
-      listener: (context, state) {
-        _rebuildMarkersAndPolylines(state);
+          prev.completedCount != curr.completedCount,
 
-        // Quiz automático cuando el bloc detecta llegada
-        if (state.phase == GamePhase.answering && state.selectedPointId != null) {
+      listener: (context, state) {
+        if (state.phase == GamePhase.answering &&
+            state.selectedPointId != null &&
+            !_quizInProgress) {
+          _quizInProgress = true;
+          _rebuildMarkers(state);
           final point = state.points.firstWhere(
             (p) => p.id == state.selectedPointId,
             orElse: () => state.points.first,
           );
-          _launchQuizForPoint(point);
+          _launchQuiz(point);
+          return;
+        }
+
+        if (state.phase != GamePhase.answering) {
+          _rebuildMarkers(state);
         }
 
         if (state.phase == GamePhase.finished) {
@@ -355,227 +593,176 @@ class _MapPageState extends State<MapPage> {
           _showSnackbar(state.errorMessage ?? 'Error desconocido');
         }
       },
+
       buildWhen: (prev, curr) =>
           prev.phase != curr.phase ||
           prev.score != curr.score ||
           prev.completedCount != curr.completedCount ||
           prev.memorizingSecondsLeft != curr.memorizingSecondsLeft ||
+          prev.gameTimeSeconds != curr.gameTimeSeconds ||
           prev.selectedPointId != curr.selectedPointId ||
-          prev.zoom != curr.zoom,
+          prev.currentLocation != curr.currentLocation,
+
       builder: (context, state) {
-        // Puntos disponibles para el carrusel: solo los no completados
-        final availablePoints = state.points
-            .asMap()
-            .entries
-            .where((e) => !e.value.isCompleted)
-            .toList();
+        // Actualizar solo el marker de posición cuando cambia la ubicación
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _updateLocationMarkerOnly(state);
+        });
 
         final hasActive = state.points.any((p) => p.isActive && !p.isCompleted);
 
         return Scaffold(
-          body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.purpleBackground,
-                  AppColors.purple900,
-                  AppColors.purpleBackground,
-                ],
+          body: Stack(
+            children: [
+              // Fondo
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.purpleBackground,
+                      AppColors.purple900,
+                      Color(0xFF0d0d1a),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            child: Stack(
-              children: [
-                Column(
+
+              // Mapa
+              Positioned.fill(
+                bottom: 80,
+                child: gm.GoogleMap(
+                  initialCameraPosition: gm.CameraPosition(
+                    target: _toGm(state.currentLocation),
+                    zoom: state.zoom,
+                  ),
+                  onMapCreated: (c) {
+                    _mapController = c;
+                    _rebuildMarkers(state);
+                  },
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled: false,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                ),
+              ),
+
+              // Stats
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: GameStats(
+                  score: state.score,
+                  completedPoints: state.completedCount,
+                  totalPoints: state.totalCount,
+                  timeElapsed: state.formatGameTime(),
+                ),
+              ),
+
+              // Controles izquierda
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                left: 16,
+                child: Column(
                   children: [
-                    GameHeader(
-                      onMenuClick: () => _showSnackbar('Menú presionado'),
-                      onSettingsClick: () => _showSnackbar('Configuración presionada'),
-                    ),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          GoogleMap(
-                            initialCameraPosition: CameraPosition(
-                              target: LatLng(
-                                state.currentLocation.latitude,
-                                state.currentLocation.longitude,
-                              ),
-                              zoom: state.zoom,
-                            ),
-                            onMapCreated: (controller) {
-                              _mapController = controller;
-                              _rebuildMarkersAndPolylines(state);
-                            },
-                            markers: _markers,
-                            polylines: _polylines,
-                            myLocationEnabled: false, // usamos nuestro marker custom
-                            myLocationButtonEnabled: false,
-                            zoomControlsEnabled: false,
-                            mapToolbarEnabled: false,
-                            onCameraMove: (pos) => _currentZoom = pos.zoom,
-                          ),
-
-                          // Cargando ruta
-                          if (_loadingRoute)
-                            Positioned(
-                              top: 16, left: 0, right: 0,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.purpleBackground.withOpacity(0.9),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      SizedBox(
-                                        width: 16, height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.purple500),
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text('Calculando ruta...', style: TextStyle(color: Colors.white, fontSize: 13)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                          // Zoom buttons
-                          Positioned(
-                            top: 16, right: 16,
-                            child: Column(
-                              children: [
-                                _ZoomButton(icon: Icons.add, onTap: () {
-                                  context.read<GameBloc>().add(ZoomInRequested());
-                                  _mapController?.animateCamera(CameraUpdate.zoomIn());
-                                }),
-                                const SizedBox(height: 8),
-                                _ZoomButton(icon: Icons.remove, onTap: () {
-                                  context.read<GameBloc>().add(ZoomOutRequested());
-                                  _mapController?.animateCamera(CameraUpdate.zoomOut());
-                                }),
-                              ],
-                            ),
-                          ),
-
-                          // Zoom %
-                          Positioned(
-                            bottom: 16, left: 16,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: AppColors.purpleBackground.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.purple500.withOpacity(0.3)),
-                              ),
-                              child: Text(
-                                '${(_currentZoom * 100 / 15).round()}%',
-                                style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'monospace'),
-                              ),
-                            ),
-                          ),
-
-                          // Botones acción
-                          Positioned(
-                            bottom: 16, right: 16,
-                            child: Column(
-                              children: [
-                                _ActionButton(
-                                  icon: Icons.my_location,
-                                  color: AppColors.purple700,
-                                  onTap: () => _mapController?.animateCamera(
-                                    CameraUpdate.newLatLngZoom(
-                                      LatLng(state.currentLocation.latitude, state.currentLocation.longitude),
-                                      state.zoom,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                _ActionButton(
-                                  icon: Icons.refresh,
-                                  color: AppColors.purple900,
-                                  onTap: () => _rebuildMarkersAndPolylines(state),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Carrusel: solo puntos NO completados, se traban si hay activo
-                          if (state.phase == GamePhase.navigating && availablePoints.isNotEmpty)
-                            Positioned(
-                              bottom: 80, left: 0, right: 0,
-                              child: SizedBox(
-                                height: 90,
-                                child: ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.only(left: 12),
-                                  itemCount: availablePoints.length,
-                                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                                  itemBuilder: (ctx, i) {
-                                    final entry = availablePoints[i];
-                                    final point = entry.value;
-                                    final originalOrder = entry.key + 1;
-                                    final isLocked = hasActive && !point.isActive;
-
-                                    return _PointChip(
-                                      order: originalOrder,
-                                      point: point,
-                                      isLocked: isLocked,
-                                      onTap: isLocked
-                                          ? () => _showSnackbar('Primero llegá al punto activo')
-                                          : () => _onPointTapped(point, state),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-
-                          // Indicador de distancia al punto activo
-                          if (state.phase == GamePhase.navigating && hasActive)
-                            Positioned(
-                              top: 16, left: 16,
-                              child: _DistanceIndicator(
-                                currentLocation: state.currentLocation,
-                                points: state.points,
-                                selectedPointId: state.selectedPointId,
-                              ),
-                            ),
-                        ],
+                    _MapBtn(
+                      icon: Icons.my_location,
+                      color: const Color(0xFF7c3aed),
+                      onTap: () => _mapController?.animateCamera(
+                        gm.CameraUpdate.newLatLngZoom(_toGm(state.currentLocation), 17),
                       ),
                     ),
-
-                    GameStats(
-                      score: state.score,
-                      completedPoints: state.completedCount,
-                      totalPoints: state.totalCount,
-                      timeElapsed: state.formatGameTime(),
+                    const SizedBox(height: 10),
+                    _MapBtn(
+                      icon: Icons.add,
+                      color: Colors.black54,
+                      onTap: () => _mapController?.animateCamera(gm.CameraUpdate.zoomIn()),
+                    ),
+                    const SizedBox(height: 10),
+                    _MapBtn(
+                      icon: Icons.remove,
+                      color: Colors.black54,
+                      onTap: () => _mapController?.animateCamera(gm.CameraUpdate.zoomOut()),
+                    ),
+                    const SizedBox(height: 10),
+                    _MapBtn(
+                      icon: Icons.refresh,
+                      color: Colors.black38,
+                      onTap: () {
+                        _pointBitmaps.clear();
+                        _rebuildMarkers(state);
+                      },
                     ),
                   ],
                 ),
+              ),
 
-                // Overlay: waiting
-                if (state.phase == GamePhase.waiting)
-                  _WaitingOverlay(
-                    onStart: () => context.read<GameBloc>().add(MemorizingStarted()),
-                  ),
-
-                // Overlay: memorizing
-                if (state.phase == GamePhase.memorizing)
-                  _MemorizingOverlay(secondsLeft: state.memorizingSecondsLeft),
-
-                // Overlay: saving
-                if (state.phase == GamePhase.saving)
-                  Container(
-                    color: Colors.black.withOpacity(0.6),
-                    child: const Center(
-                      child: CircularProgressIndicator(color: AppColors.purple500),
+              // Chip de distancia (derecha)
+              if (state.phase == GamePhase.navigating &&
+                  hasActive &&
+                  state.selectedPointId != null)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  right: 16,
+                  child: _DistanceChip(
+                    current: state.currentLocation,
+                    target: state.points.firstWhere(
+                      (p) => p.id == state.selectedPointId,
+                      orElse: () => state.points.first,
                     ),
                   ),
-              ],
-            ),
+                ),
+
+              // Cargando ruta
+              if (_loadingRoute)
+                Positioned(
+                  bottom: 100, left: 0, right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 14, height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF7c3aed),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text('Calculando ruta...',
+                              style: TextStyle(color: Colors.white, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Overlays
+              if (state.phase == GamePhase.waiting)
+                _WaitingOverlay(
+                  difficulty: _difficulty,
+                  onStart: () => context.read<GameBloc>().add(MemorizingStarted()),
+                ),
+
+              if (state.phase == GamePhase.memorizing)
+                _MemorizingOverlay(secondsLeft: state.memorizingSecondsLeft),
+
+              if (state.phase == GamePhase.saving)
+                Container(
+                  color: Colors.black.withOpacity(0.6),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF7c3aed)),
+                  ),
+                ),
+            ],
           ),
         );
       },
@@ -589,71 +776,50 @@ class _MapPageState extends State<MapPage> {
   }
 }
 
-// ────────────────────────────────────────────────────────────
-// Indicador de distancia al punto activo
-// ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Widgets auxiliares
+// ─────────────────────────────────────────────────────────────
 
-class _DistanceIndicator extends StatelessWidget {
-  final ll.LatLng currentLocation;
-  final List<Point> points;
-  final int? selectedPointId;
+class _DistanceChip extends StatelessWidget {
+  final ll.LatLng current;
+  final Point target;
+  const _DistanceChip({required this.current, required this.target});
 
-  const _DistanceIndicator({
-    required this.currentLocation,
-    required this.points,
-    required this.selectedPointId,
-  });
-
-  double _distanceMeters(ll.LatLng a, ll.LatLng b) {
-    const earthRadius = 6371000.0;
-    final dLat = (b.latitude - a.latitude) * (3.14159265358979 / 180);
-    final dLon = (b.longitude - a.longitude) * (3.14159265358979 / 180);
-    final sinDLat = (dLat / 2);
-    final sinDLon = (dLon / 2);
-    final c = sinDLat * sinDLat +
-        (a.latitude * (3.14159265358979 / 180)).abs() *
-            (b.latitude * (3.14159265358979 / 180)).abs() *
-            sinDLon *
-            sinDLon;
-    return earthRadius * 2 * c;
+  double _dist() {
+    const r = 6371000.0;
+    final dLat = (target.coords.latitude - current.latitude) * (pi / 180);
+    final dLon = (target.coords.longitude - current.longitude) * (pi / 180);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(current.latitude * pi / 180) *
+            cos(target.coords.latitude * pi / 180) *
+            sin(dLon / 2) * sin(dLon / 2);
+    return r * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (selectedPointId == null) return const SizedBox.shrink();
-
-    final target = points.firstWhere(
-      (p) => p.id == selectedPointId,
-      orElse: () => points.first,
-    );
-
-    final dist = _distanceMeters(currentLocation, target.coords);
-    final distText = dist < 1000
-        ? '${dist.round()} m'
-        : '${(dist / 1000).toStringAsFixed(1)} km';
-
+    final d    = _dist();
+    final text = d < 1000 ? '${d.round()} m' : '${(d / 1000).toStringAsFixed(1)} km';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      constraints: const BoxConstraints(maxWidth: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.purpleBackground.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.purple500.withOpacity(0.5)),
+        color: Colors.black.withOpacity(0.75),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF7c3aed).withOpacity(0.7)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.directions_walk, color: AppColors.purple400, size: 18),
+          const Icon(Icons.directions_walk, color: Color(0xFFc4b5fd), size: 16),
           const SizedBox(width: 6),
-          Text(
-            distText,
-            style: const TextStyle(color: Colors.white, fontSize: 14, fontFamily: 'monospace'),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '· ${target.name}',
-            style: const TextStyle(color: AppColors.purple300, fontSize: 12),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Flexible(
+            child: Text(
+              '$text · ${target.name}',
+              style: const TextStyle(color: Colors.white, fontSize: 11),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -661,86 +827,110 @@ class _DistanceIndicator extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────────────────────
-// Chip de punto (con estado locked)
-// ──────────────────────────────────────────────────────────────
-
-class _PointChip extends StatelessWidget {
-  final int order;
-  final Point point;
-  final bool isLocked;
+class _MapBtn extends StatelessWidget {
+  final IconData icon;
+  final Color color;
   final VoidCallback onTap;
-  const _PointChip({required this.order, required this.point, required this.isLocked, required this.onTap});
+  const _MapBtn({required this.icon, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final color = point.isActive
-        ? AppColors.purple700
-        : isLocked
-            ? AppColors.darkSecondary.withOpacity(0.5)
-            : AppColors.darkSecondary;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Opacity(
-        opacity: isLocked ? 0.5 : 1.0,
-        child: Container(
-          width: 160,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.92),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: point.isActive
-                  ? AppColors.purple300
-                  : isLocked
-                      ? Colors.white.withOpacity(0.05)
-                      : Colors.white.withOpacity(0.1),
-            ),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 3))],
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 14,
-                backgroundColor: Colors.white.withOpacity(0.15),
-                child: isLocked
-                    ? const Icon(Icons.lock, color: Colors.white54, size: 14)
-                    : Text('$order', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      point.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      point.isActive ? '● Navegando' : isLocked ? 'Esperando...' : 'Pendiente',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(12),
+      elevation: 4,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 44, height: 44,
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
       ),
     );
   }
 }
 
-// ── Overlays ──────────────────────────────────────────────────
+class _PointDialog extends StatelessWidget {
+  final Point point;
+  final VoidCallback onConfirm;
+  const _PointDialog({required this.point, required this.onConfirm});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1a1033),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF4c1d95).withOpacity(0.6)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (point.imageUrls.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  point.imageUrls.first,
+                  height: 130,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            if (point.imageUrls.isNotEmpty) const SizedBox(height: 12),
+            Text(point.name,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
+            const SizedBox(height: 6),
+            Text(point.description,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Color(0xFFa78bfa), fontSize: 13)),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar',
+                      style: TextStyle(color: Color(0xFFa78bfa))),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: onConfirm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7c3aed),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Ir aquí', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _WaitingOverlay extends StatelessWidget {
+  final Difficulty difficulty;
   final VoidCallback onStart;
-  const _WaitingOverlay({required this.onStart});
+  const _WaitingOverlay({required this.difficulty, required this.onStart});
+
+  String get _label {
+    switch (difficulty) {
+      case Difficulty.easy:   return 'Fácil — 3 puntos';
+      case Difficulty.medium: return 'Medio — 5 puntos';
+      case Difficulty.hard:   return 'Difícil — 7 puntos';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -751,34 +941,59 @@ class _WaitingOverlay extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 32),
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: AppColors.purpleCard,
+            color: const Color(0xFF1a1033),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.purple500, width: 2),
-            boxShadow: [BoxShadow(color: AppColors.purple500.withOpacity(0.3), blurRadius: 30, spreadRadius: 5)],
+            border: Border.all(color: const Color(0xFF7c3aed), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7c3aed).withOpacity(0.3),
+                blurRadius: 30,
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.map_outlined, color: AppColors.purple400, size: 64),
+              const Icon(Icons.map_outlined, color: Color(0xFFa78bfa), size: 64),
               const SizedBox(height: 16),
-              const Text('Memory Trip', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              const Text(
-                'Tendrás 60 segundos para memorizar los puntos del recorrido.\nLuego deberás encontrarlos en el mapa.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.darkMutedForeground, fontSize: 15, height: 1.5),
+              const Text('Memory Trip',
+                  style: TextStyle(
+                      color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7c3aed).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF7c3aed).withOpacity(0.5)),
+                ),
+                child: Text(_label,
+                    style: const TextStyle(color: Color(0xFFc4b5fd), fontSize: 13)),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+              const Text(
+                'Tendrás 60 segundos para memorizar los puntos. '
+                'Luego deberás encontrarlos en el mapa.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Color(0xFF9ca3af), fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: onStart,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.purple700,
+                    backgroundColor: const Color(0xFF7c3aed),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('¡Comenzar!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: const Text('¡Comenzar!',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -800,119 +1015,28 @@ class _MemorizingOverlay extends StatelessWidget {
         alignment: Alignment.topCenter,
         child: SafeArea(
           child: Container(
-            margin: const EdgeInsets.only(top: 80, left: 24, right: 24),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            margin: const EdgeInsets.only(top: 12, left: 80, right: 80),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: AppColors.purpleBackground.withOpacity(0.92),
+              color: Colors.black.withOpacity(0.75),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.purple500.withOpacity(0.6)),
+              border: Border.all(color: const Color(0xFF7c3aed).withOpacity(0.7)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.remove_red_eye_outlined, color: AppColors.purple400, size: 22),
-                const SizedBox(width: 10),
-                Text(
-                  'Memoriza el recorrido — ${secondsLeft}s',
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                ),
+                const Icon(Icons.remove_red_eye_outlined,
+                    color: Color(0xFFa78bfa), size: 18),
+                const SizedBox(width: 8),
+                Text('Memoriza — ${secondsLeft}s',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PointDialog extends StatelessWidget {
-  final Point point;
-  final VoidCallback onConfirm;
-  const _PointDialog({required this.point, required this.onConfirm});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.purpleCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.purpleCardBorder),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(point.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 12),
-            Text(point.description, style: const TextStyle(color: AppColors.darkMutedForeground, fontSize: 14)),
-            const SizedBox(height: 8),
-            const Text('¿Es este el punto que querés ir?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar', style: TextStyle(color: AppColors.purple400)),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: onConfirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.purple700,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text('Ir', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ZoomButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _ZoomButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.darkSecondary.withOpacity(0.9),
-      borderRadius: BorderRadius.circular(25),
-      elevation: 4,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(25),
-        child: SizedBox(width: 50, height: 50, child: Icon(icon, color: Colors.white, size: 24)),
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color.withOpacity(0.9),
-      borderRadius: BorderRadius.circular(28),
-      elevation: 4,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
-        child: SizedBox(width: 56, height: 56, child: Icon(icon, color: Colors.white, size: 28)),
       ),
     );
   }

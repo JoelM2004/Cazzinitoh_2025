@@ -23,4 +23,7 @@ abstract class GameRepository {
   Future<Either<Failure, Stats>> saveStats(
     Stats stats,
   );
+
+  Future<Either<Failure, List<ScoreLeaderboard>>> getUserScores(String userId);
+
 }

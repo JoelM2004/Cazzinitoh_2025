@@ -58,7 +58,10 @@ class AppEmailField extends StatelessWidget {
 
   String? _validateEmail(String? v) {
     if (v == null || v.trim().isEmpty) return 'Por favor ingresá tu email';
-    final emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+    
+    // Modificado para aceptar múltiples subdominios o terminaciones de país
+    final emailRegex = RegExp(r'^[\w\.\+\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$');
+    
     if (!emailRegex.hasMatch(v.trim())) return 'Ingresá un email válido';
     return null;
   }

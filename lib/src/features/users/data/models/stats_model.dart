@@ -15,19 +15,18 @@ class StatsModel extends Stats {
       time: (json['time'] as num).toDouble(),
       matchs: json['matchs'] as int,
       accuracy: (json['accuracy'] as num).toDouble(),
-      userId: json['users'] is Map
-          ? json['users']['\$id']
-          : json['users'].toString(),
+      // 🟢 CORRECCIÓN: Lee directamente de 'userId' como un String
+      userId: json['userId']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'mts': mts,
+      'mts': mts.toInt(), // 👈 MAGIA AQUÍ: Forzamos a que sea un entero (sin decimales)
       'time': time,
       'matchs': matchs,
       'accuracy': accuracy,
-      'users': userId,
+      'userId': userId,
     };
   }
 
